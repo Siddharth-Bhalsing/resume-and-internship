@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pdf from 'pdf-parse';
 
+export const dynamic = 'force-dynamic'
+
 // NOTE: In production, use process.env.GEMINI_API_KEY
 // For this local demo, we use the key provided by the user.
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyD55NyhM1TLOrIkDWUZwhes5vYppruEYgU';
