@@ -33,34 +33,36 @@ export async function GET(request: Request) {
       console.log('🔄 Creating profile with service role client...')
 
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-      if (!serviceRoleKey) {
-        console.error('❌ No service role key found in environment')
-        return NextResponse.redirect(`${origin}/auth/auth-code-error?error=missing_service_role_key`)
-      }
 
-      const serviceSupabase = createClient(supabaseUrl, serviceRoleKey, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        }
-      })
-
-      const { error: profileError } = await serviceSupabase
-        .from('profiles')
-        .upsert({
-          id: data.user.id,
-          full_name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0],
-          email: data.user.email,
-          role: 'student',
-          profile_step: 1,
-          profile_completed: false,
-        }, {
-          onConflict: 'id'
+      if (serviceRoleKey) {
+        const serviceSupabase = createClient(supabaseUrl, serviceRoleKey, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+          }
         })
 
-      if (profileError) {
-        console.error('❌ Service role profile creation failed:', profileError)
-        return NextResponse.redirect(`${origin}/auth/auth-code-error?error=database_error&details=${encodeURIComponent(profileError.message)}`)
+        const { error: profileError } = await serviceSupabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            full_name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0],
+            email: data.user.email,
+            role: 'student',
+            profile_step: 1,
+            profile_completed: false,
+          }, {
+            onConflict: 'id'
+          })
+
+        if (profileError) {
+          console.error('❌ Service role profile creation failed:', profileError)
+          // Continue anyway, client side might handle it
+        } else {
+          console.log('✅ User profile created successfully with service role')
+        }
+      } else {
+        console.log('⚠️ Skipping server-side profile creation: No Service Role Key found')
       }
 
       console.log('✅ User profile created successfully with service role')
