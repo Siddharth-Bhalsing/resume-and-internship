@@ -136,11 +136,11 @@ BEGIN
     END IF;
 END $$;
 
--- Insert test government officials
-INSERT INTO government_officials (employee_id, name, designation, ministry, email, role) VALUES
-('GOV001', 'Dr. Rajesh Kumar', 'Joint Secretary', 'Ministry of Education', 'rajesh.kumar@gov.in', 'admin'),
-('GOV002', 'Ms. Priya Sharma', 'Director', 'Ministry of Electronics & IT', 'priya.sharma@gov.in', 'officer'),
-('GOV003', 'Mr. Amit Singh', 'Under Secretary', 'Ministry of Skill Development', 'amit.singh@gov.in', 'officer')
+-- Insert test government officials with specific IDs for auth user creation
+INSERT INTO government_officials (id, employee_id, name, designation, ministry, department, email, phone, role, permissions, is_active) VALUES
+('550e8400-e29b-41d4-a716-446655440001', 'EMP001', 'Dr. Rajesh Kumar', 'Joint Secretary', 'Ministry of Education', 'Department of Higher Education', 'rajesh.kumar@gov.in', '+91-9876543210', 'admin', '{}', true),
+('550e8400-e29b-41d4-a716-446655440002', 'EMP002', 'Ms. Priya Sharma', 'Director', 'Ministry of Electronics & IT', 'Digital India Division', 'priya.sharma@gov.in', '+91-9876543211', 'officer', '{}', true),
+('550e8400-e29b-41d4-a716-446655440003', 'EMP003', 'Mr. Amit Singh', 'Under Secretary', 'Ministry of Skill Development', 'Skill Development Division', 'amit.singh@gov.in', '+91-9876543212', 'officer', '{}', true)
 ON CONFLICT (employee_id) DO NOTHING;
 
 -- Insert test recruiters
@@ -165,6 +165,12 @@ ALTER TABLE internships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE applications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Public can view recruiters" ON recruiters;
+DROP POLICY IF EXISTS "Students can view active internships" ON internships;
+DROP POLICY IF EXISTS "Users can view own applications" ON applications;
+DROP POLICY IF EXISTS "Users can insert own applications" ON applications;
+
 -- RLS Policies
 CREATE POLICY "Public can view recruiters" ON recruiters FOR SELECT USING (true);
 CREATE POLICY "Students can view active internships" ON internships FOR SELECT USING (status = 'active');
@@ -172,11 +178,44 @@ CREATE POLICY "Users can view own applications" ON applications FOR SELECT USING
 CREATE POLICY "Users can insert own applications" ON applications FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Enable realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE recruiters;
-ALTER PUBLICATION supabase_realtime ADD TABLE internship_postings;
-ALTER PUBLICATION supabase_realtime ADD TABLE internships;
-ALTER PUBLICATION supabase_realtime ADD TABLE applications;
-ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+DO $$
+BEGIN
+    -- Add tables to realtime publication if not already added
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'recruiters'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE recruiters;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'internship_postings'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE internship_postings;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'internships'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE internships;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'applications'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE applications;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'notifications'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+    END IF;
+END $$;
 
 -- Grant permissions
 GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;

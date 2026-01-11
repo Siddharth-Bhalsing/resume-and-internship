@@ -2,18 +2,27 @@
 
 ## 🏛️ **PM Internship Portal - Login Credentials**
 
-## 🏛️ Government Officials
-- **Employee ID**: `GOV001` | **Password**: `gov123456`
+## 🏛️ Government Officials (Working Credentials)
+
+**Standard Password for All**: `goverment`
+
+- **Employee ID**: `EMP001`
   - Name: Dr. Rajesh Kumar
-  - Role: Joint Secretary, Ministry of Education
+  - Email: rajesh.kumar@gov.in
+  - Designation: Joint Secretary
+  - Ministry: Ministry of Education
   
-- **Employee ID**: `GOV002` | **Password**: `gov123456`
+- **Employee ID**: `EMP002`
   - Name: Ms. Priya Sharma  
-  - Role: Director, Ministry of Electronics & IT
+  - Email: priya.sharma@gov.in
+  - Designation: Director
+  - Ministry: Ministry of Electronics & IT
   
-- **Employee ID**: `GOV003` | **Password**: `gov123456`
+- **Employee ID**: `EMP003`
   - Name: Mr. Amit Singh
-  - Role: Under Secretary, Ministry of Skill Development
+  - Email: amit.singh@gov.in
+  - Designation: Under Secretary
+  - Ministry: Ministry of Skill Development
 
 ## 🏢 Recruiters/Organizations
 - **Organization ID**: `ORG001` | **Password**: `recruiter123`
@@ -37,22 +46,25 @@
   - Ministry: Ministry of Railways
 
 ## 📋 Setup Instructions
-1. Run `setup-database-with-auth.sql` in Supabase SQL Editor
-2. This will create all tables and insert the test data
-3. Use the credentials above for testing the system
-4. All organizations are pre-approved for immediate use
-- **Email:** priya.sharma@gov.in
-- **Department:** Skill Development, Ministry of Education
-- **Office:** Shastri Bhawan, New Delhi
-- **Phone:** +91-11-2338-5678
 
-#### **3. Shri Amit Singh - Deputy Secretary**
-- **Employee ID:** `GOV003`
-- **Password:** `password123`
-- **Email:** amit.singh@gov.in
-- **Department:** Digital India, Ministry of Electronics & IT
-- **Office:** Electronics Niketan, New Delhi
-- **Phone:** +91-11-2301-9876
+### Step 1: Create Database Tables
+1. Run `setup-database-with-auth.sql` in Supabase SQL Editor
+2. This creates the `government_officials` table and inserts test officials
+
+### Step 2: Create Auth Users
+```bash
+node scripts/create-gov-auth-users.js
+```
+This creates Supabase Auth users for all government officials.
+
+### Step 3: Test Login
+1. Go to: http://localhost:3000/gov-login
+2. Use any employee ID: `EMP001`, `EMP002`, or `EMP003`
+3. Password: `goverment`
+4. Enter the CAPTCHA code
+5. Click "Secure Login"
+
+✅ All organizations are pre-approved for immediate use
 
 ---
 

@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'react-hot-toast'
-import { supabase, isSupabaseConfigured } from '../../lib/supabase'
+import { supabase, isSupabaseConfigured, authenticateRecruiter } from '../../lib/supabase'
 
 export default function RecruiterLoginPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -20,7 +20,7 @@ export default function RecruiterLoginPage() {
   })
   const [step, setStep] = useState<'login' | 'otp'>('login')
   const [captchaCode, setCaptchaCode] = useState('R8K2M')
-  const [errors, setErrors] = useState<{[key: string]: string}>({})
+  const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const router = useRouter()
 
   const generateCaptcha = () => {
@@ -38,91 +38,116 @@ export default function RecruiterLoginPage() {
   }, [])
 
   const validateForm = () => {
-    const newErrors: {[key: string]: string} = {}
-    
+    const newErrors: { [key: string]: string } = {}
+
     if (!formData.organizationId) {
       newErrors.organizationId = 'Organization ID is required'
     }
-    // Password optional for OTP-based auth; keep validation only if provided
-    if (formData.password && formData.password.length < 6) {
+
+    if (!formData.password) {
+      newErrors.password = 'Password is required'
+    } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters'
     }
-    
+
     if (!formData.captcha) {
       newErrors.captcha = 'Security code is required'
     } else if (formData.captcha.toUpperCase() !== captchaCode) {
       newErrors.captcha = 'Security code is incorrect'
     }
-    
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
-    
+
     setIsLoading(true)
-    
+    setErrors({})
+
     try {
-      // Dev bypass when Supabase is not configured
+      console.log('🔄 Starting recruiter login...')
+
       if (!isSupabaseConfigured()) {
-        toast.success('Dev mode: proceeding without Supabase')
-        const devRecruiter = {
-          employee_id: formData.organizationId || 'DEV-EMP-001',
-          company_name: 'Dev Recruiter',
-          profile_completed: false,
-          profile_step: 1,
-          approval_status: 'pending'
-        }
-        sessionStorage.setItem('recruiter_data', JSON.stringify(devRecruiter))
-        setStep('otp')
+        setErrors({ general: 'Database connection not configured. Please check environment variables.' })
+        toast.error('System configuration error')
         return
       }
-      
-      // Check if recruiter exists in database
-      let existingRecruiter = null
-      let dbError = null
 
-      try {
-        const { data, error } = await supabase
-          .from('recruiter_profiles')
-          .select('*')
-          .eq('employee_id', formData.organizationId)
-          .single()
+      const { data, error } = await authenticateRecruiter(
+        formData.organizationId,
+        formData.password
+      )
 
-        existingRecruiter = data
-        dbError = error
-      } catch (err) {
-        console.warn('Supabase table may not exist, falling back to dev mode:', err)
-        dbError = err
-      }
+      if (error) {
+        console.error('❌ Recruiter login error:', error)
 
-      if (existingRecruiter && !dbError) {
-        // Store recruiter data locally and continue to OTP
-        sessionStorage.setItem('recruiter_data', JSON.stringify(existingRecruiter))
-        toast.success(`Welcome back ${existingRecruiter.company_name || 'Recruiter'}!`)
-      } else {
-        // If table doesn't exist or recruiter not found, use dev mode
-        console.log('Using dev mode for recruiter login')
-        const devRecruiter = {
-          employee_id: formData.organizationId || 'DEV-EMP-001',
-          company_name: 'Dev Recruiter Company',
-          profile_completed: false,
-          profile_step: 1,
-          approval_status: 'approved', // Set to approved for dev mode
-          created_at: new Date().toISOString()
+        if (error.message.includes('Invalid organization ID')) {
+          setErrors({ organizationId: 'Invalid Organization ID' })
+          toast.error('Invalid Organization ID')
+        } else if (error.message.includes('Invalid login credentials')) {
+          setErrors({ password: 'Invalid password' })
+          toast.error('Invalid password')
+        } else if (error.message.includes('not approved')) {
+          setErrors({ general: 'Your account is pending approval. Please contact support.' })
+          toast.error('Account not approved')
+        } else {
+          setErrors({ general: error.message || 'Login failed. Please try again.' })
+          toast.error('Login failed')
         }
-        sessionStorage.setItem('recruiter_data', JSON.stringify(devRecruiter))
-        toast.success('Dev mode: Recruiter account ready!')
+        return
       }
-      
-      setStep('otp')
-      
-    } catch (error) {
-      console.error('Login error:', error)
-      setErrors({ general: 'Login failed. Please try again.' })
+
+      if (data.user && data.recruiter) {
+        console.log('✅ Recruiter login successful:', data.recruiter.company_name)
+
+        // CRITICAL: Store session data in sessionStorage for dashboard authentication
+        const sessionData = {
+          user: data.user,
+          recruiter: data.recruiter,
+          role: 'recruiter',
+          loginTime: Date.now()
+        }
+        sessionStorage.setItem('recruiter_session', JSON.stringify(sessionData))
+
+        // ALSO store 'recruiter_data' which the dashboard explicitly looks for
+        // The dashboard expects this to be the profile object directly
+        sessionStorage.setItem('recruiter_data', JSON.stringify(data.recruiter))
+
+        sessionStorage.setItem('user_role', 'recruiter')
+        console.log('✅ Session stored in sessionStorage (recruiter_session AND recruiter_data)')
+
+        // Update user profile with recruiter role
+        try {
+          await supabase
+            .from('profiles')
+            .upsert({
+              id: data.user.id,
+              full_name: data.recruiter.company_name,
+              email: data.recruiter.email,
+              role: 'recruiter',
+              profile_completed: data.recruiter.profile_completed,
+            }, {
+              onConflict: 'id'
+            })
+          console.log('✅ Profile updated successfully')
+        } catch (profileError) {
+          console.warn('⚠️ Profile update failed (non-critical):', profileError)
+        }
+
+        toast.success(`Welcome, ${data.recruiter.company_name}!`)
+
+        // Skip OTP step and go directly to dashboard
+        router.push('/recruiter-dashboard')
+      }
+
+    } catch (error: any) {
+      console.error('❌ Unexpected recruiter login error:', error)
+      setErrors({ general: 'An unexpected error occurred. Please try again.' })
+      toast.error('Login failed')
     } finally {
       setIsLoading(false)
     }
@@ -130,12 +155,12 @@ export default function RecruiterLoginPage() {
 
   const handleOTPSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.otp || formData.otp.length !== 6) {
       setErrors({ otp: 'Please enter valid 6-digit OTP' })
       return
     }
-    
+
     setIsLoading(true)
     try {
       await new Promise(resolve => setTimeout(resolve, 1500))
@@ -189,7 +214,7 @@ export default function RecruiterLoginPage() {
               <p className="text-lg mb-8 leading-relaxed max-w-md text-gray-700">
                 Government-approved organizations and departments can post internship opportunities for students
               </p>
-              
+
               {/* Eligibility Steps */}
               <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200 mb-6">
                 <h3 className="text-lg font-bold mb-4 text-gray-800">Eligibility Requirements</h3>
@@ -241,7 +266,7 @@ export default function RecruiterLoginPage() {
             >
               {/* Back Button */}
               <div className="mb-6">
-                <Link 
+                <Link
                   href="/gov-login"
                   className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
                 >
@@ -287,9 +312,9 @@ export default function RecruiterLoginPage() {
                       <input
                         type="text"
                         value={formData.organizationId}
-                        onChange={(e) => setFormData({...formData, organizationId: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        placeholder="Enter your organization ID"
+                        placeholder="Enter your organization ID (e.g., ORG001)"
                       />
                       {errors.organizationId && (
                         <p className="text-red-500 text-sm mt-1">{errors.organizationId}</p>
@@ -304,7 +329,7 @@ export default function RecruiterLoginPage() {
                         <input
                           type={showPassword ? "text" : "password"}
                           value={formData.password}
-                          onChange={(e) => setFormData({...formData, password: e.target.value})}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-12"
                           placeholder="Enter your password"
                         />
@@ -329,7 +354,7 @@ export default function RecruiterLoginPage() {
                         <input
                           type="text"
                           value={formData.captcha}
-                          onChange={(e) => setFormData({...formData, captcha: e.target.value})}
+                          onChange={(e) => setFormData({ ...formData, captcha: e.target.value })}
                           className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                           placeholder="Enter code"
                         />
@@ -391,7 +416,7 @@ export default function RecruiterLoginPage() {
                       <input
                         type="text"
                         value={formData.otp}
-                        onChange={(e) => setFormData({...formData, otp: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-center text-2xl tracking-widest"
                         placeholder="000000"
                         maxLength={6}

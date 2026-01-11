@@ -29,7 +29,7 @@ export default function RegisterPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [showExistingUserPopup, setShowExistingUserPopup] = useState(false)
-  
+
   const { register, handleSubmit, formState: { errors }, watch, trigger } = useForm<RegisterForm>()
 
   const password = watch('password')
@@ -56,10 +56,10 @@ export default function RegisterPage() {
   }
 
   const nextStep = async () => {
-    const fieldsToValidate = currentStep === 1 
-      ? ['fullName', 'email', 'phone'] 
+    const fieldsToValidate = currentStep === 1
+      ? ['fullName', 'email', 'phone']
       : ['password', 'confirmPassword']
-    
+
     const isValid = await trigger(fieldsToValidate as any)
     if (!isValid) {
       return
@@ -68,42 +68,14 @@ export default function RegisterPage() {
     // Check if email already exists when moving from step 1 to step 2
     if (currentStep === 1) {
       setIsLoading(true)
-      
-      try {
-        const emailValue = watch('email')
-        console.log('🔍 Checking email availability:', emailValue)
-        
-        // Check if email exists in Supabase auth
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: emailValue,
-          password: 'dummy-password-for-check'
-        })
-        
-        // If no error with invalid credentials, it means email exists
-        if (error && error.message.includes('Invalid login credentials')) {
-          // Email exists but wrong password - show existing user popup
-          console.log('❌ Email already registered')
-          setShowExistingUserPopup(true)
-          setIsLoading(false)
-          return
-        } else if (!error) {
-          // Successful login means user exists
-          console.log('❌ Email already registered')
-          setShowExistingUserPopup(true)
-          setIsLoading(false)
-          return
-        }
-        
-        // If we get here, email doesn't exist, proceed to next step
-        console.log('✅ Email available, proceeding')
-        setCurrentStep(currentStep + 1)
-        
-      } catch (error: any) {
-        console.log('⚠️ Email check failed, proceeding anyway')
-        setCurrentStep(currentStep + 1)
-      } finally {
-        setIsLoading(false)
-      }
+
+      // Check if email already exists when moving from step 1 to step 2
+      // We skip the pre-check because signInWithPassword always returns "Invalid credentials" 
+      // for security reasons (both for wrong password and user-not-found).
+      // We will let the actual signUp call handle the duplicate email check.
+      console.log('✅ Proceeding to next step');
+      setCurrentStep(currentStep + 1);
+      setIsLoading(false);
     } else {
       // For other steps, just proceed normally
       setCurrentStep(currentStep + 1)
@@ -119,7 +91,7 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: RegisterForm) => {
     console.log('🔄 Form submitted, current loading state:', isLoading)
-    
+
     // Validation checks first
     if (data.captcha !== captcha) {
       toast.error('Invalid captcha. Please check and try again.')
@@ -168,7 +140,7 @@ export default function RegisterPage() {
         }
 
         setShowSuccessPopup(true)
-        
+
         // Auto-redirect after 5 seconds
         setTimeout(() => {
           setShowSuccessPopup(false)
@@ -186,17 +158,17 @@ export default function RegisterPage() {
 
   const getPasswordStrength = (password: string) => {
     if (!password) return { strength: 0, label: '', color: '' }
-    
+
     let strength = 0
     if (password.length >= 8) strength++
     if (/[A-Z]/.test(password)) strength++
     if (/[a-z]/.test(password)) strength++
     if (/[0-9]/.test(password)) strength++
     if (/[^A-Za-z0-9]/.test(password)) strength++
-    
+
     const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong']
     const colors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500']
-    
+
     return {
       strength,
       label: labels[strength - 1] || '',
@@ -212,7 +184,7 @@ export default function RegisterPage() {
   // Success popup component
   const SuccessPopup = () => {
     console.log(' Rendering SuccessPopup component')
-    
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999]">
         <motion.div
@@ -226,14 +198,14 @@ export default function RegisterPage() {
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Account Created Successfully! 🎉</h3>
             <p className="text-lg text-green-600 font-medium">Welcome to PM Internship Portal</p>
           </div>
-          
+
           <div className="bg-gradient-to-r from-blue-50 to-green-50 p-6 rounded-lg mb-6">
             <div className="text-center space-y-4">
               <div className="flex items-center justify-center space-x-2">
                 <span className="text-2xl">📧</span>
                 <p className="font-semibold text-blue-800">Check Your Email for Confirmation</p>
               </div>
-              
+
               <div className="text-sm text-gray-700 space-y-2">
                 <p>We've sent a verification email to your registered email address.</p>
                 <p className="font-medium text-orange-600">⚠️ You must confirm your email before you can login.</p>
@@ -241,7 +213,7 @@ export default function RegisterPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="space-y-3">
             <button
               onClick={handleProceedToLogin}
@@ -254,7 +226,7 @@ export default function RegisterPage() {
               Redirecting automatically in 5 seconds...
             </p>
           </div>
-          
+
           <div className="mt-4 text-xs text-gray-500">
             <p>🔒 Your data will be encrypted and stored securely</p>
           </div>
@@ -308,17 +280,15 @@ export default function RegisterPage() {
             <div className="flex items-center justify-center space-x-4">
               {[1, 2, 3].map((step) => (
                 <div key={step} className="flex items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step <= currentStep 
-                      ? 'bg-government-blue text-white' 
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${step <= currentStep
+                      ? 'bg-government-blue text-white'
                       : 'bg-gray-200 text-gray-500'
-                  }`}>
+                    }`}>
                     {step < currentStep ? <CheckCircle className="w-5 h-5" /> : step}
                   </div>
                   {step < 3 && (
-                    <div className={`w-16 h-1 mx-2 ${
-                      step < currentStep ? 'bg-government-blue' : 'bg-gray-200'
-                    }`} />
+                    <div className={`w-16 h-1 mx-2 ${step < currentStep ? 'bg-government-blue' : 'bg-gray-200'
+                      }`} />
                   )}
                 </div>
               ))}
@@ -328,7 +298,7 @@ export default function RegisterPage() {
                 <p className="text-sm text-gray-600">
                   Step {currentStep} of 3: {
                     currentStep === 1 ? 'Basic Information' :
-                    currentStep === 2 ? 'Account Security' : 'Verification'
+                      currentStep === 2 ? 'Account Security' : 'Verification'
                   }
                 </p>
               </div>
@@ -345,7 +315,7 @@ export default function RegisterPage() {
           >
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-gray-800 mb-2">Create Your Student Account</h2>
-              <p className="text-gray-600">Join PM Internship & Resume Verifier platform</p>
+              <p className="text-gray-600">Join Chanakya Internship and Resume Verifier platform</p>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -361,7 +331,7 @@ export default function RegisterPage() {
                       <input
                         type="text"
                         placeholder="Enter your full name"
-                        {...register('fullName', { 
+                        {...register('fullName', {
                           required: 'Full name is required',
                           minLength: { value: 2, message: 'Name must be at least 2 characters' }
                         })}
@@ -383,7 +353,7 @@ export default function RegisterPage() {
                       <input
                         type="email"
                         placeholder="Enter your email address"
-                        {...register('email', { 
+                        {...register('email', {
                           required: 'Email is required',
                           pattern: {
                             value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -408,7 +378,7 @@ export default function RegisterPage() {
                       <input
                         type="tel"
                         placeholder="Enter your phone number"
-                        {...register('phone', { 
+                        {...register('phone', {
                           required: 'Phone number is required',
                           pattern: {
                             value: /^[6-9]\d{9}$/,
@@ -437,7 +407,7 @@ export default function RegisterPage() {
                       <input
                         type={showPassword ? 'text' : 'password'}
                         placeholder="Create a strong password"
-                        {...register('password', { 
+                        {...register('password', {
                           required: 'Password is required',
                           minLength: { value: 8, message: 'Password must be at least 8 characters' },
                           pattern: {
@@ -458,13 +428,13 @@ export default function RegisterPage() {
                     {errors.password && (
                       <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
                     )}
-                    
+
                     {/* Password Strength Indicator */}
                     {password && (
                       <div className="mt-2">
                         <div className="flex items-center space-x-2">
                           <div className="flex-1 bg-gray-200 rounded-full h-2">
-                            <div 
+                            <div
                               className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.color}`}
                               style={{ width: `${(passwordStrength.strength / 5) * 100}%` }}
                             />
@@ -485,7 +455,7 @@ export default function RegisterPage() {
                       <input
                         type={showConfirmPassword ? 'text' : 'password'}
                         placeholder="Confirm your password"
-                        {...register('confirmPassword', { 
+                        {...register('confirmPassword', {
                           required: 'Please confirm your password',
                           validate: (value: string) => value === password || 'Passwords do not match'
                         })}
@@ -546,7 +516,7 @@ export default function RegisterPage() {
                         </button>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-4 mt-2">
                       <div className="bg-gray-100 px-4 py-2 rounded border-2 border-dashed border-gray-300 font-mono text-lg tracking-wider">
                         {captcha}
@@ -559,7 +529,7 @@ export default function RegisterPage() {
                         <RefreshCw className="w-5 h-5" />
                       </button>
                     </div>
-                    
+
                     <input
                       type="text"
                       placeholder="Enter the captcha value"
@@ -609,7 +579,7 @@ export default function RegisterPage() {
                     Previous
                   </button>
                 )}
-                
+
                 {currentStep < 3 ? (
                   <button
                     type="button"
@@ -662,14 +632,14 @@ export default function RegisterPage() {
       <footer className="bg-gray-800 text-white py-8 mt-12">
         <div className="container mx-auto px-4 text-center">
           <p className="text-sm text-gray-400">
-            &copy; 2024 PM Internship & Resume Verifier - Government of India. All rights reserved.
+            &copy; 2024 Chanakya Internship and Resume Verifier - Government of India. All rights reserved.
           </p>
         </div>
       </footer>
 
       {/* Success Popup */}
       {showSuccessPopup && <SuccessPopup />}
-      
+
       {/* Existing User Popup */}
       {showExistingUserPopup && <ExistingUserPopup />}
     </div>

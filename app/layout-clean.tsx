@@ -14,8 +14,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Government Internship & Resume Verifier",
-  description: "Government of India - Ministry of Education",
+  title: "Chanakya",
+  description: "Internship and Resume Verifier",
 };
 
 export default function RootLayout({

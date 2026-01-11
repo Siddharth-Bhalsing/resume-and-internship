@@ -1,8 +1,8 @@
-# Email Templates for PM Internship & Resume Verifier
+# Email Templates for Chanakya Internship and Resume Verifier
 
 ## 1. Email Confirmation Template
 
-**Subject:** Verify Your Email - PM Internship & Resume Verifier
+**Subject:** Verify Your Email - Chanakya Internship and Resume Verifier
 
 **HTML Body:**
 ```html
@@ -26,16 +26,16 @@
     <div class="container">
         <div class="header">
             <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="Government of India" class="logo">
-            <h1>PM Internship & Resume Verifier</h1>
-            <p>Government of India | Ministry of EDUCATION</p>
+            <h1>Chanakya</h1>
+            <p>Internship and Resume Verifier</p>
         </div>
         
         <div class="content">
-            <h2>🎉 Welcome to PM Internship Portal!</h2>
+            <h2>🎉 Welcome to Chanakya Internship Portal!</h2>
             
             <p>Dear Student,</p>
             
-            <p>Thank you for registering with <strong>PM Internship & Resume Verifier</strong> - India's premier government internship platform.</p>
+            <p>Thank you for registering with <strong>Chanakya Internship and Resume Verifier</strong> - India's premier government internship platform.</p>
             
             <p>To complete your registration and secure your account, please verify your email address by clicking the button below:</p>
             
@@ -66,8 +66,8 @@
         
         <div class="footer">
             <p>🇮🇳 <strong>विकसित भारत @2047</strong></p>
-            <p>PM Internship & Resume Verifier<br>
-            Ministry of EDUCATION, Government of India</p>
+            <p>Chanakya<br>
+            Internship and Resume Verifier</p>
             <p>This is an automated email. Please do not reply to this email.</p>
         </div>
     </div>
@@ -102,7 +102,8 @@
     <div class="container">
         <div class="header">
             <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="Government of India" class="logo">
-            <h1>PM Internship & Resume Verifier</h1>
+            <h1>Chanakya</h1>
+            <p>Internship and Resume Verifier</p>
             <p>Secure Login Request</p>
         </div>
         
@@ -111,7 +112,7 @@
             
             <p>Hello,</p>
             
-            <p>You requested to sign in to your <strong>PM Internship Portal</strong> account. Click the button below to securely log in:</p>
+            <p>You requested to sign in to your <strong>Chanakya Internship Portal</strong> account. Click the button below to securely log in:</p>
             
             <div style="text-align: center;">
                 <a href="{{ .ConfirmationURL }}" class="button">🚀 Sign In Securely</a>
@@ -137,8 +138,8 @@
         
         <div class="footer">
             <p>🇮🇳 <strong>विकसित भारत @2047</strong></p>
-            <p>PM Internship & Resume Verifier<br>
-            Ministry of EDUCATION, Government of India</p>
+            <p>Chanakya<br>
+            Internship and Resume Verifier</p>
         </div>
     </div>
 </body>

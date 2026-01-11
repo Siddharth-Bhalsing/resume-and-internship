@@ -34,10 +34,10 @@ export default function ResumeUpload({ onResumeExtracted, hasExistingResume = fa
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
-    
+
     const files = Array.from(e.dataTransfer.files)
     const file = files[0]
-    
+
     if (file && (file.type === 'application/pdf' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.type.startsWith('image/'))) {
       handleFileUpload(file)
     } else {
@@ -113,7 +113,7 @@ export default function ResumeUpload({ onResumeExtracted, hasExistingResume = fa
       } else {
         // Create FormData for file upload (PDF/DOCX)
         const formData = new FormData()
-        formData.append('resume', file)
+        formData.append('file', file)
 
         // Upload and extract resume data via server
         const response = await fetch('/api/resume/extract', {
@@ -197,11 +197,10 @@ export default function ResumeUpload({ onResumeExtracted, hasExistingResume = fa
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-              isDragging
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${isDragging
                 ? 'border-blue-400 bg-blue-50'
                 : 'border-gray-300 hover:border-gray-400'
-            }`}
+              }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -216,7 +215,7 @@ export default function ResumeUpload({ onResumeExtracted, hasExistingResume = fa
             <p className="text-sm text-gray-500 mb-6">
               Supports PDF and DOCX files (Max 10MB)
             </p>
-            
+
             <label className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
               <Upload className="w-5 h-5 mr-2" />
               Choose File

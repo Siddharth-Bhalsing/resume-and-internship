@@ -2,8 +2,8 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 
 const supabase = createClient(
-  'https://erxpdqoftkleyhtxyacs.supabase.co', 
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVyeHBkcW9mdGtsZXlodHh5YWNzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODQzNTA2MiwiZXhwIjoyMDc0MDExMDYyfQ.JohAkiXBB_E20Z8-Vsk2TrQZqWGrx-7rtB4Ze-_qDCY'
+  'https://htfkcabyhhgcsudgbzzm.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0ZmtjYWJ5aGhnY3N1ZGdienptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5NzI2MjksImV4cCI6MjA4MzU0ODYyOX0.HUUa_L3wADb2PV_yHgfjNoiHzCvTcObX7wQxk--MM0Q'
 );
 
 async function runSQLFix() {
@@ -25,7 +25,8 @@ async function runSQLFix() {
       
       try {
         const { data, error } = await supabase.rpc('exec_sql', { 
-          sql_query: statement 
+          sql: statement,
+          params: []
         });
         
         if (error) {

@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'react-hot-toast'
-import { supabase } from '../../lib/supabase'
+import { supabase, isSupabaseConfigured, authenticateGovernmentOfficial } from '../../lib/supabase'
 
 export default function GovernmentLoginPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -20,7 +20,7 @@ export default function GovernmentLoginPage() {
   })
   const [step, setStep] = useState<'login' | 'otp'>('login')
   const [captchaCode, setCaptchaCode] = useState('G7X9M')
-  const [errors, setErrors] = useState<{[key: string]: string}>({})
+  const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const router = useRouter()
 
   const generateCaptcha = () => {
@@ -38,90 +38,123 @@ export default function GovernmentLoginPage() {
   }, [])
 
   const validateForm = () => {
-    const newErrors: {[key: string]: string} = {}
-    
+    const newErrors: { [key: string]: string } = {}
+
     if (!formData.employeeId) {
       newErrors.employeeId = 'Employee ID is required'
     }
-    
+
     if (!formData.password) {
       newErrors.password = 'Password is required'
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters'
     }
-    
+
     if (!formData.captcha) {
       newErrors.captcha = 'Security code is required'
     } else if (formData.captcha.toUpperCase() !== captchaCode) {
       newErrors.captcha = 'Security code is incorrect'
     }
-    
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
-    
+
     setIsLoading(true)
-    
+    setErrors({})
+
     try {
-      // Test credentials for government officials
-      const validCredentials = {
-        'GOV001': { password: 'password123', name: 'Dr. Rajesh Kumar', department: 'Ministry of Education', role: 'Director' },
-        'GOV002': { password: 'password123', name: 'Ms. Priya Sharma', department: 'Ministry of Education', role: 'Joint Secretary' },
-        'GOV003': { password: 'password123', name: 'Mr. Amit Singh', department: 'Ministry of Education', role: 'Under Secretary' },
-        'ADMIN': { password: 'admin123', name: 'System Administrator', department: 'IT Department', role: 'Admin' }
-      }
-      
-      const credential = validCredentials[formData.employeeId as keyof typeof validCredentials]
-      
-      if (!credential) {
-        setErrors({ employeeId: 'Invalid Employee ID. Use: GOV001, GOV002, GOV003, or ADMIN' })
-        setIsLoading(false)
+      console.log('🔄 Starting government official login...')
+
+      if (!isSupabaseConfigured()) {
+        setErrors({ general: 'Database connection not configured. Please check environment variables.' })
+        toast.error('System configuration error')
         return
       }
-      
-      if (credential.password !== formData.password) {
-        setErrors({ password: 'Invalid Password. Use: password123 (or admin123 for ADMIN)' })
-        setIsLoading(false)
+
+      const { data, error } = await authenticateGovernmentOfficial(
+        formData.employeeId,
+        formData.password
+      )
+
+      if (error) {
+        console.error('❌ Government login error:', error)
+
+        if (error.message.includes('Invalid employee ID')) {
+          setErrors({ employeeId: 'Invalid Employee ID' })
+          toast.error('Invalid Employee ID')
+        } else if (error.message.includes('Invalid login credentials')) {
+          setErrors({ password: 'Invalid password' })
+          toast.error('Invalid password')
+        } else {
+          setErrors({ general: error.message || 'Login failed. Please try again.' })
+          toast.error('Login failed')
+        }
         return
       }
-      
-      // Create mock official data
-      const officialData = {
-        employee_id: formData.employeeId,
-        name: credential.name,
-        department: credential.department,
-        role: credential.role,
-        email: `${formData.employeeId.toLowerCase()}@gov.in`,
-        permissions: ['read', 'write', 'approve']
+
+      if (data.user && data.official) {
+        console.log('✅ Government official login successful:', data.official.name)
+
+        // CRITICAL: Store session data in sessionStorage for dashboard authentication
+        const sessionData = {
+          user: data.user,
+          official: data.official,
+          role: 'government',
+          loginTime: Date.now()
+        }
+        sessionStorage.setItem('gov_session', JSON.stringify(sessionData))
+        sessionStorage.setItem('user_role', 'government')
+        console.log('✅ Session stored in sessionStorage')
+
+        // Try to update user profile (non-blocking - don't fail login if this fails)
+        try {
+          await supabase
+            .from('profiles')
+            .upsert({
+              id: data.user.id,
+              full_name: data.official.name,
+              email: data.official.email,
+              role: 'government',
+              profile_completed: true,
+            }, {
+              onConflict: 'id'
+            })
+          console.log('✅ Profile updated successfully')
+        } catch (profileError) {
+          console.warn('⚠️ Profile update failed (non-critical):', profileError)
+          // Continue with login even if profile update fails
+        }
+
+        toast.success(`Welcome, ${data.official.name}!`)
+
+        // Redirect to dashboard immediately
+        console.log('🔄 Redirecting to /gov-dashboard...')
+        router.push('/gov-dashboard')
       }
-      
-      // Store official data in session storage for gov dashboard
-      sessionStorage.setItem('government_official', JSON.stringify(officialData))
-      
-      toast.success(`Welcome ${credential.name}!`)
-      setStep('otp')
-      
-    } catch (error) {
-      console.error('Login error:', error)
-      setErrors({ general: 'Login failed. Please try again.' })
+
+    } catch (error: any) {
+      console.error('❌ Unexpected government login error:', error)
+      setErrors({ general: 'An unexpected error occurred. Please try again.' })
+      toast.error('Login failed')
+    } finally {
+      setIsLoading(false)
     }
-    
-    setIsLoading(false)
   }
 
   const handleOTPSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.otp || formData.otp.length !== 6) {
       setErrors({ otp: 'Please enter valid 6-digit OTP' })
       return
     }
-    
+
     setIsLoading(true)
     await new Promise(resolve => setTimeout(resolve, 1500))
     router.push('/gov-dashboard')
@@ -253,7 +286,7 @@ export default function GovernmentLoginPage() {
               </div>
             </div>
           </div>
-          
+
           {/* Content Overlay */}
           <div className="relative z-10 flex flex-col justify-center h-full p-4 lg:p-8">
             <div className="text-center text-white mb-4 lg:mb-8">
@@ -360,7 +393,7 @@ export default function GovernmentLoginPage() {
                       <input
                         type="text"
                         value={formData.employeeId}
-                        onChange={(e) => setFormData({...formData, employeeId: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
                         className="w-full px-3 py-2 lg:px-4 lg:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm lg:text-base"
                         placeholder="Enter your employee ID"
                       />
@@ -377,7 +410,7 @@ export default function GovernmentLoginPage() {
                         <input
                           type={showPassword ? "text" : "password"}
                           value={formData.password}
-                          onChange={(e) => setFormData({...formData, password: e.target.value})}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                           className="w-full px-3 py-2 lg:px-4 lg:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all pr-10 lg:pr-12 text-sm lg:text-base"
                           placeholder="Enter your password"
                         />
@@ -402,7 +435,7 @@ export default function GovernmentLoginPage() {
                         <input
                           type="text"
                           value={formData.captcha}
-                          onChange={(e) => setFormData({...formData, captcha: e.target.value})}
+                          onChange={(e) => setFormData({ ...formData, captcha: e.target.value })}
                           className="flex-1 px-3 py-2 lg:px-4 lg:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm lg:text-base"
                           placeholder="Enter code"
                         />
@@ -464,7 +497,7 @@ export default function GovernmentLoginPage() {
                       <input
                         type="text"
                         value={formData.otp}
-                        onChange={(e) => setFormData({...formData, otp: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
                         className="w-full px-3 py-2 lg:px-4 lg:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-center text-lg lg:text-2xl tracking-widest"
                         placeholder="000000"
                         maxLength={6}

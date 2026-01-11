@@ -66,7 +66,7 @@ export async function extractTextFromImage(file: File): Promise<string> {
     await worker.terminate()
     return text || ''
   } catch (err) {
-    try { await worker.terminate() } catch {}
+    try { await worker.terminate() } catch { }
     throw err
   }
 }
@@ -113,7 +113,7 @@ function mapServerToExtractedData(data: any): ExtractedData {
 // Parse extracted text into structured data
 export function parseResumeText(text: string): ExtractedData {
   const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0)
-  
+
   const result: ExtractedData = {
     personalInfo: {
       name: '',
@@ -131,25 +131,25 @@ export function parseResumeText(text: string): ExtractedData {
       github: ''
     }
   }
-  
+
   // Extract personal information
   result.personalInfo = extractPersonalInfo(text)
-  
+
   // Extract work experience
   result.experience = extractWorkExperience(text)
-  
+
   // Extract education
   result.education = extractEducation(text)
-  
+
   // Extract skills
   result.skills = extractSkills(text)
-  
+
   // Extract certificates
   result.certificates = extractCertificates(text)
-  
+
   // Extract social profiles
   result.socialProfiles = extractSocialProfiles(text)
-  
+
   return result
 }
 
@@ -157,27 +157,27 @@ function extractPersonalInfo(text: string): ExtractedData['personalInfo'] {
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
   const phoneRegex = /[\+]?[0-9]{10,15}/g
   const nameRegex = /^[A-Z][a-z]+ [A-Z][a-z]+/m
-  
+
   const email = text.match(emailRegex)?.[0] || ''
   const phone = text.match(phoneRegex)?.[0] || ''
   const name = text.match(nameRegex)?.[0] || ''
-  
+
   // Extract location and address
   const locationMatch = text.match(/([A-Z][a-z]+,\s*[A-Z][a-z]+)/g)
   const location = locationMatch?.[0] || ''
-  
+
   const addressMatch = text.match(/\d+\s+[A-Za-z\s,]+\d{6}/g)
   const address = addressMatch?.[0] || ''
-  
+
   return { name, email, phone, location, address }
 }
 
 function extractWorkExperience(text: string): ExtractedData['experience'] {
   const experience: ExtractedData['experience'] = []
-  
+
   // Look for job titles and companies
   const jobPattern = /([A-Z][a-z\s]+)\n([A-Z][a-z\s]+(?:Pvt Ltd|Inc|Corp|Company|Solutions))\n([A-Za-z]+\s+\d{4}\s*-\s*(?:Present|[A-Za-z]+\s+\d{4}))/g
-  
+
   let match
   while ((match = jobPattern.exec(text)) !== null) {
     experience.push({
@@ -187,16 +187,16 @@ function extractWorkExperience(text: string): ExtractedData['experience'] {
       description: 'Extracted from resume'
     })
   }
-  
+
   return experience
 }
 
 function extractEducation(text: string): ExtractedData['education'] {
   const education: ExtractedData['education'] = []
-  
+
   // Look for degree patterns
   const degreePattern = /(Bachelor|Master|B\.Tech|M\.Tech|BCA|MCA|MBA)[^\n]*\n([A-Z][a-z\s]+University|Institute|College)[^\n]*\n(\d{4})/g
-  
+
   let match
   while ((match = degreePattern.exec(text)) !== null) {
     education.push({
@@ -206,7 +206,7 @@ function extractEducation(text: string): ExtractedData['education'] {
       grade: extractGrade(text, match.index)
     })
   }
-  
+
   return education
 }
 
@@ -219,17 +219,17 @@ function extractGrade(text: string, startIndex: number): string {
 function extractSkills(text: string): string[] {
   const skillsSection = text.match(/SKILLS[^\n]*\n([^\n]+)/i)
   if (!skillsSection) return []
-  
+
   const skillsText = skillsSection[1]
   return skillsText.split(/[,\s]+/).filter(skill => skill.length > 2)
 }
 
 function extractCertificates(text: string): ExtractedData['certificates'] {
   const certificates: ExtractedData['certificates'] = []
-  
+
   // Look for certificate patterns
   const certPattern = /([A-Z][a-z\s]+(?:Certificate|Certified|Certification))[^\n]*\n([A-Z][a-z\s]+(?:Amazon|Google|Microsoft|Meta|IBM))[^\n]*\n(?:Certificate ID: ([A-Z0-9-]+))?/g
-  
+
   let match
   while ((match = certPattern.exec(text)) !== null) {
     certificates.push({
@@ -238,14 +238,14 @@ function extractCertificates(text: string): ExtractedData['certificates'] {
       year: new Date().getFullYear().toString()
     })
   }
-  
+
   return certificates
 }
 
 function extractSocialProfiles(text: string): ExtractedData['socialProfiles'] {
   const linkedinMatch = text.match(/linkedin\.com\/in\/([a-zA-Z0-9-]+)/i)
   const githubMatch = text.match(/github\.com\/([a-zA-Z0-9-]+)/i)
-  
+
   return {
     linkedin: linkedinMatch ? `https://linkedin.com/in/${linkedinMatch[1]}` : '',
     github: githubMatch ? `https://github.com/${githubMatch[1]}` : ''
@@ -260,7 +260,7 @@ export async function extractResumeData(file: File): Promise<ExtractedData> {
     file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   ) {
     const formData = new FormData()
-    formData.append('resume', file)
+    formData.append('file', file)
 
     const response = await fetch('/api/resume/extract', {
       method: 'POST',

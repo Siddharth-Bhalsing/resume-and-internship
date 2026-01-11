@@ -89,13 +89,7 @@ export default function HomePage() {
       rating: 5,
       image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face"
     },
-    {
-      name: "Priya Sharma",
-      position: "Recruitment Head, Infosys",
-      content: "The accuracy and speed of resume verification is impressive. Highly recommended for enterprise use.",
-      rating: 5,
-      image: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face"
-    },
+
     {
       name: "Amit Patel",
       position: "CEO, StartupXYZ",
@@ -393,12 +387,11 @@ export default function HomePage() {
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center space-x-2 sm:space-x-6 flex-1">
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-sm sm:text-2xl font-bold text-gray-900 truncate">Government Internship & Resume Verifier</h1>
-                  <p className="text-xs sm:text-sm text-gray-600">MINISTRY OF EDUCATION</p>
-                  <p className="text-xs text-gray-500 hidden sm:block">Government of India</p>
+                  <h1 className="text-lg sm:text-3xl font-bold text-gray-900 truncate">Chanakya</h1>
+                  <p className="text-sm sm:text-lg text-gray-600 hidden sm:block">Internship and Resume Verifier</p>
                 </div>
               </div>
-              
+
               {/* Mobile Menu Button */}
               <div className="flex items-center space-x-2">
                 <button
@@ -407,7 +400,7 @@ export default function HomePage() {
                 >
                   {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                 </button>
-                
+
                 {/* Desktop Login Buttons */}
                 <div className="hidden lg:flex items-center space-x-3 xl:space-x-6">
                   <Link href="/login" className="bg-orange-500 hover:bg-orange-600 text-white px-3 xl:px-6 py-2 rounded font-semibold transition-colors text-sm xl:text-base">
@@ -499,7 +492,7 @@ export default function HomePage() {
                     <FileText className="w-5 h-5" />
                     <span className="font-medium">APPLY</span>
                   </Link>
-                  
+
                   {/* Mobile Login Buttons */}
                   <div className="pt-4 space-y-2 border-t border-blue-800">
                     <Link href="/login" className="flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white px-4 py-3 rounded-lg font-semibold transition-colors">
@@ -529,8 +522,8 @@ export default function HomePage() {
             <Image
               src={carouselImages[currentImageIndex].src}
               alt={carouselImages[currentImageIndex].alt}
-              layout="fill"
-              objectFit="cover"
+              fill
+              style={{ objectFit: 'cover' }}
               quality={100}
               priority={currentImageIndex === 0}
             />
@@ -539,7 +532,7 @@ export default function HomePage() {
         </AnimatePresence>
 
         <div className="relative z-10 flex flex-col items-center justify-center h-full text-center text-white p-4">
-          <motion.h1 
+          <motion.h1
             key={currentImageIndex + '-title'}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -548,7 +541,7 @@ export default function HomePage() {
           >
             {carouselImages[currentImageIndex].title}
           </motion.h1>
-          <motion.p 
+          <motion.p
             key={currentImageIndex + '-subtitle'}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -570,13 +563,13 @@ export default function HomePage() {
           </motion.div>
         </div>
 
-        <button 
+        <button
           onClick={goToPrevious}
           className="absolute top-1/2 left-4 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full transition-colors"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
-        <button 
+        <button
           onClick={goToNext}
           className="absolute top-1/2 right-4 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full transition-colors"
         >
@@ -585,7 +578,7 @@ export default function HomePage() {
 
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex space-x-2">
           {carouselImages.map((_, index) => (
-            <button 
+            <button
               key={index}
               onClick={() => setCurrentImageIndex(index)}
               className={`w-3 h-3 rounded-full transition-colors ${currentImageIndex === index ? 'bg-white' : 'bg-white/50 hover:bg-white/75'}`}
@@ -612,12 +605,9 @@ export default function HomePage() {
 
           {/* Simple Slide Gallery */}
           <div className="h-96 w-full mb-16">
-            <SimpleSlideGallery 
+            <SimpleSlideGallery
               items={[
-                {
-                  image: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800&h=600&fit=crop&crop=center",
-                  text: "IIT Delhi Campus"
-                },
+
                 {
                   image: "https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?w=800&h=600&fit=crop&crop=center",
                   text: "Indian Institute of Science"
@@ -654,7 +644,7 @@ export default function HomePage() {
             />
           </div>
 
-          
+
 
           {/* Notifications and Placements Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
@@ -667,7 +657,7 @@ export default function HomePage() {
                 </div>
                 <span className="px-3 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">LIVE</span>
               </div>
-              
+
               <div className="space-y-3 h-80 overflow-hidden relative">
                 <div className="animate-slide-up-notifications space-y-3">
                   {[
@@ -704,7 +694,7 @@ export default function HomePage() {
                 </div>
                 <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium">HIGH PACKAGE</span>
               </div>
-              
+
               <div className="space-y-4 h-80 overflow-y-auto">
                 {[
                   {
@@ -715,14 +705,7 @@ export default function HomePage() {
                     image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
                     location: 'New Delhi'
                   },
-                  {
-                    name: 'Priya Sharma',
-                    company: 'ISRO',
-                    package: '₹7.8 LPA',
-                    position: 'Aerospace Engineer',
-                    image: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face',
-                    location: 'Bangalore'
-                  },
+
                   {
                     name: 'Rahul Kumar',
                     company: 'NIC',
@@ -757,8 +740,8 @@ export default function HomePage() {
                   }
                 ].map((student, index) => (
                   <div key={index} className="flex items-center space-x-4 p-3 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200 hover:shadow-md transition-all">
-                    <img 
-                      src={student.image} 
+                    <img
+                      src={student.image}
                       alt={student.name}
                       className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
                     />
@@ -845,7 +828,7 @@ export default function HomePage() {
                 <div className="text-center">
                   <div className="text-6xl font-bold text-gray-900 mb-2">₹0</div>
                   <div className="text-lg font-semibold text-gray-600 mb-6">Free Trial</div>
-                  
+
                   <ul className="space-y-3 mb-8 text-left">
                     <li className="flex items-center space-x-3">
                       <span className="text-green-500">✓</span>
@@ -864,7 +847,7 @@ export default function HomePage() {
                       <span className="text-sm">Standard Support</span>
                     </li>
                   </ul>
-                  
+
                   <button className="w-full bg-gray-600 hover:bg-gray-700 text-white py-3 px-6 rounded-lg font-semibold transition-colors">
                     Start Free Trial
                   </button>
@@ -879,7 +862,7 @@ export default function HomePage() {
                 <div className="text-center">
                   <div className="text-6xl font-bold text-blue-600 mb-2">₹99</div>
                   <div className="text-lg font-semibold text-gray-600 mb-6">Per Month</div>
-                  
+
                   <ul className="space-y-3 mb-8 text-left">
                     <li className="flex items-center space-x-3">
                       <span className="text-green-500">✓</span>
@@ -902,7 +885,7 @@ export default function HomePage() {
                       <span className="text-sm">Interview Preparation</span>
                     </li>
                   </ul>
-                  
+
                   <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg font-semibold transition-colors">
                     Choose Plan
                   </button>
@@ -917,7 +900,7 @@ export default function HomePage() {
                 <div className="text-center">
                   <div className="text-6xl font-bold text-purple-600 mb-2">₹299</div>
                   <div className="text-lg font-semibold text-gray-600 mb-6">Per Month</div>
-                  
+
                   <ul className="space-y-3 mb-8 text-left">
                     <li className="flex items-center space-x-3">
                       <span className="text-green-500">✓</span>
@@ -944,7 +927,7 @@ export default function HomePage() {
                       <span className="text-sm">Direct Recruiter Connect</span>
                     </li>
                   </ul>
-                  
+
                   <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-lg font-semibold transition-colors">
                     Choose Plan
                   </button>
@@ -992,7 +975,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 <p className="text-gray-400 mb-4 max-w-md">
-                  Empowering India's youth through skill development and career opportunities. 
+                  Empowering India's youth through skill development and career opportunities.
                   A flagship initiative to bridge the gap between education and employment.
                 </p>
                 <div className="flex items-center space-x-2 text-sm text-gray-400">

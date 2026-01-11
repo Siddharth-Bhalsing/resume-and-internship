@@ -1,15 +1,15 @@
 # Government Internship Portal - Complete Login Credentials
 
 ## 🏛️ Government Officials
-- **Employee ID**: `GOV001` | **Password**: `gov123456`
+- **Employee ID**: `EMP001` | **Password**: `goverment`
   - Name: Dr. Rajesh Kumar
   - Role: Joint Secretary, Ministry of Education
   
-- **Employee ID**: `GOV002` | **Password**: `gov123456`
+- **Employee ID**: `EMP002` | **Password**: `goverment`
   - Name: Ms. Priya Sharma  
   - Role: Director, Ministry of Electronics & IT
   
-- **Employee ID**: `GOV003` | **Password**: `gov123456`
+- **Employee ID**: `EMP003` | **Password**: `goverment`
   - Name: Mr. Amit Singh
   - Role: Under Secretary, Ministry of Skill Development
 

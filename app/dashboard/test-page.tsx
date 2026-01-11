@@ -129,8 +129,8 @@ export default function TestStudentDashboard() {
               </button>
               
               <div>
-                <h1 className="text-lg font-semibold text-gray-900">PM Internship & Resume Verifier</h1>
-                <p className="text-xs text-gray-600">Ministry of Education - Student Portal (Test Mode)</p>
+                <h1 className="text-2xl font-bold text-gray-900">Chanakya</h1>
+                <p className="text-sm text-gray-600">Internship and Resume Verifier - Student Portal (Test Mode)</p>
               </div>
             </div>
             

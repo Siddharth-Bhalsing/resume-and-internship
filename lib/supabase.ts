@@ -10,33 +10,33 @@ const getSiteUrl = () => {
   if (process.env.NEXT_PUBLIC_SITE_URL) {
     return process.env.NEXT_PUBLIC_SITE_URL
   }
-  
+
   // Vercel automatically sets VERCEL_URL
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`
   }
-  
+
   // For client-side, use window.location.origin
   if (typeof window !== 'undefined') {
     return window.location.origin
   }
-  
+
   // Fallback for server-side rendering
   return 'https://splitwise-jet.vercel.app'
 }
 
 // Check if environment variables are properly configured
-if (!supabaseUrl || !supabaseAnonKey || 
-    supabaseUrl.includes('placeholder') || 
-    supabaseAnonKey.includes('placeholder')) {
+if (!supabaseUrl || !supabaseAnonKey ||
+  supabaseUrl.includes('placeholder') ||
+  supabaseAnonKey.includes('placeholder')) {
   console.error('❌ Supabase configuration error: Missing or invalid environment variables')
   console.error('Please check your .env.local file and ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set')
 }
 
 // Create Supabase client with enhanced configuration
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co', 
-  supabaseAnonKey || 'placeholder-key', 
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key',
   {
     auth: {
       persistSession: true,
@@ -47,7 +47,7 @@ export const supabase = createClient(
     },
     global: {
       headers: {
-        'x-client-info': 'pm-internship-portal'
+        'x-client-info': 'chanakya-internship-portal'
       }
     },
     db: {
@@ -58,16 +58,16 @@ export const supabase = createClient(
 
 // Helper function to check if Supabase is properly configured
 export const isSupabaseConfigured = () => {
-  return supabaseUrl && 
-         supabaseAnonKey && 
-         !supabaseUrl.includes('placeholder') && 
-         !supabaseAnonKey.includes('placeholder')
+  return supabaseUrl &&
+    supabaseAnonKey &&
+    !supabaseUrl.includes('placeholder') &&
+    !supabaseAnonKey.includes('placeholder')
 }
 
 // Enhanced authentication helper with timeout and retry logic
 export const authenticateWithTimeout = async (
-  email: string, 
-  password: string, 
+  email: string,
+  password: string,
   timeoutMs: number = 15000
 ): Promise<{ data: any; error: any }> => {
   if (!isSupabaseConfigured()) {
@@ -105,7 +105,7 @@ export const authenticateWithTimeout = async (
 
 // Magic link authentication with timeout
 export const sendMagicLinkWithTimeout = async (
-  email: string, 
+  email: string,
   timeoutMs: number = 10000
 ): Promise<{ data: any; error: any }> => {
   if (!isSupabaseConfigured()) {
@@ -243,4 +243,285 @@ export interface SkillAssessment {
   time_taken: number
   status: 'completed' | 'in_progress' | 'not_started'
   created_at: string
+}
+
+// Google OAuth authentication
+export const signInWithGoogle = async () => {
+  if (!isSupabaseConfigured()) {
+    return {
+      data: null,
+      error: { message: 'Supabase is not properly configured. Please check your environment variables.' }
+    }
+  }
+
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${getSiteUrl()}/auth/callback`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      }
+    })
+
+    return { data, error }
+  } catch (error) {
+    return {
+      data: null,
+      error: error
+    }
+  }
+}
+
+// Enhanced user registration with profile creation
+export const signUpWithEmail = async (
+  email: string,
+  password: string,
+  userData: {
+    full_name?: string
+    phone?: string
+    role?: 'student' | 'recruiter' | 'government'
+  } = {}
+): Promise<{ data: any; error: any }> => {
+  if (!isSupabaseConfigured()) {
+    return {
+      data: null,
+      error: { message: 'Supabase is not properly configured. Please check your environment variables.' }
+    }
+  }
+
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: userData.full_name,
+          phone: userData.phone,
+          role: userData.role || 'student',
+        }
+      }
+    })
+
+    return { data, error }
+  } catch (error) {
+    return {
+      data: null,
+      error: error
+    }
+  }
+}
+
+// Create or update user profile after authentication
+export const createUserProfile = async (user: any, additionalData: any = {}) => {
+  if (!user) return { error: { message: 'No user provided' } }
+
+  try {
+    // Check if profile already exists
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single()
+
+    if (existingProfile) {
+      // Update existing profile
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: user.user_metadata?.full_name || additionalData.full_name || user.email?.split('@')[0],
+          email: user.email,
+          role: additionalData.role || 'student',
+          updated_at: new Date().toISOString(),
+          ...additionalData
+        })
+        .eq('id', user.id)
+        .select()
+
+      return { data, error }
+    } else {
+      // Create new profile
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          full_name: user.user_metadata?.full_name || additionalData.full_name || user.email?.split('@')[0],
+          email: user.email,
+          role: additionalData.role || 'student',
+          profile_step: 1,
+          profile_completed: false,
+          ...additionalData
+        })
+        .select()
+
+      return { data, error }
+    }
+  } catch (error) {
+    return {
+      data: null,
+      error: error
+    }
+  }
+}
+
+// Government official authentication
+export const authenticateGovernmentOfficial = async (
+  employeeId: string,
+  password: string
+): Promise<{ data: any; error: any }> => {
+  if (!isSupabaseConfigured()) {
+    return {
+      data: null,
+      error: { message: 'Supabase is not properly configured. Please check your environment variables.' }
+    }
+  }
+
+  try {
+    // First check if employee ID exists in government_officials table
+    const { data: official, error: officialError } = await supabase
+      .from('government_officials')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .single()
+
+    if (officialError || !official) {
+      return {
+        data: null,
+        error: { message: 'Invalid employee ID or official not found' }
+      }
+    }
+
+    // MOCK AUTHENTICATION - Check password directly without Supabase Auth
+    // This allows login without creating auth users in Supabase Authentication
+    const VALID_PASSWORD = 'goverment' // Standard password for all officials
+
+    if (password !== VALID_PASSWORD) {
+      return {
+        data: null,
+        error: { message: 'Invalid login credentials' }
+      }
+    }
+
+    // Create a mock user object to maintain compatibility
+    const mockUser = {
+      id: official.id,
+      email: official.email,
+      user_metadata: {
+        full_name: official.name,
+        employee_id: official.employee_id,
+        role: 'government'
+      }
+    }
+
+    // Create a mock session
+    const mockSession = {
+      access_token: 'mock-token-' + Date.now(),
+      refresh_token: 'mock-refresh-' + Date.now(),
+      expires_in: 3600,
+      token_type: 'bearer',
+      user: mockUser
+    }
+
+    console.log('✅ Mock authentication successful for:', official.name)
+
+    // Return mock auth data and official info
+    return {
+      data: {
+        user: mockUser,
+        session: mockSession,
+        official: official
+      },
+      error: null
+    }
+  } catch (error) {
+    return {
+      data: null,
+      error: error
+    }
+  }
+}
+
+// Recruiter authentication
+export const authenticateRecruiter = async (
+  organizationId: string,
+  password: string
+): Promise<{ data: any; error: any }> => {
+  if (!isSupabaseConfigured()) {
+    return {
+      data: null,
+      error: { message: 'Supabase is not properly configured. Please check your environment variables.' }
+    }
+  }
+
+  try {
+    // First check if organization ID exists in recruiters table
+    const { data: recruiter, error: recruiterError } = await supabase
+      .from('recruiters')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .single()
+
+    if (recruiterError || !recruiter) {
+      return {
+        data: null,
+        error: { message: 'Invalid organization ID or recruiter not found' }
+      }
+    }
+
+    if (recruiter.approval_status !== 'approved') {
+      return {
+        data: null,
+        error: { message: `Account status: ${recruiter.approval_status}. Please contact support.` }
+      }
+    }
+
+    // MOCK AUTHENTICATION - Check password directly without Supabase Auth
+    const VALID_PASSWORD = 'recruiter123' // Standard password for all recruiters
+
+    if (password !== VALID_PASSWORD) {
+      return {
+        data: null,
+        error: { message: 'Invalid login credentials' }
+      }
+    }
+
+    // Create a mock user object
+    const mockUser = {
+      id: recruiter.id,
+      email: recruiter.email,
+      user_metadata: {
+        full_name: recruiter.contact_person,
+        organization_id: recruiter.organization_id,
+        role: 'recruiter'
+      }
+    }
+
+    // Create a mock session
+    const mockSession = {
+      access_token: 'mock-token-' + Date.now(),
+      refresh_token: 'mock-refresh-' + Date.now(),
+      expires_in: 3600,
+      token_type: 'bearer',
+      user: mockUser
+    }
+
+    console.log('✅ Mock authentication successful for:', recruiter.organization_name)
+
+    // Return mock auth data and recruiter info
+    return {
+      data: {
+        user: mockUser,
+        session: mockSession,
+        recruiter: recruiter
+      },
+      error: null
+    }
+  } catch (error) {
+    return {
+      data: null,
+      error: error
+    }
+  }
 }

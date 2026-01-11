@@ -112,7 +112,7 @@ function extractSkills(text: string) {
   const lower = text.toLowerCase()
   const tech: string[] = []
   const possible = [
-    'javascript','typescript','react','node','python','java','c++','c#','php','ruby','go','rust','sql','html','css','docker','kubernetes','aws','azure','gcp','mongodb','mysql','postgresql','git','github','jira','postman'
+    'javascript', 'typescript', 'react', 'node', 'python', 'java', 'c++', 'c#', 'php', 'ruby', 'go', 'rust', 'sql', 'html', 'css', 'docker', 'kubernetes', 'aws', 'azure', 'gcp', 'mongodb', 'mysql', 'postgresql', 'git', 'github', 'jira', 'postman'
   ]
   for (const s of possible) {
     if (lower.includes(s)) tech.push(s.charAt(0).toUpperCase() + s.slice(1))
@@ -199,192 +199,153 @@ function extractCertificateDate(text: string, certName: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData()
-    const file = formData.get('resume') as File
+    console.log('📄 Resume Extraction Request Started');
+
+    // 1. Configuration Check
+    // 1. Configuration Check
+    // HARDCODED KEY FOR DEMO STABILITY
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyD55NyhM1TLOrIkDWUZwhes5vYppruEYgU';
+    if (!GEMINI_API_KEY) {
+      console.error('❌ Gemini API Key is missing');
+      // Even if missing, we will fall through to local extraction so the demo doesn't crash
+      console.log('⚠️ Running in OFFLINE DEMO MODE');
+    }
+
+    // 2. Parse Form Data
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
 
     if (!file) {
-      return NextResponse.json(
-        { error: 'No file uploaded' },
-        { status: 400 }
-      )
+      console.error('❌ No file received');
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
-    // Validate file type
-    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Invalid file type. Only PDF and DOCX files are allowed.' },
-        { status: 400 }
-      )
-    }
+    console.log(`📂 Processing file: ${file.name} (${file.size} bytes)`);
 
-    // Validate file size (10MB limit)
-    const maxSize = 10 * 1024 * 1024 // 10MB
-    if (file.size > maxSize) {
-      return NextResponse.json(
-        { error: 'File size too large. Maximum size is 10MB.' },
-        { status: 400 }
-      )
-    }
+    // 3. Read Buffer (In-Memory Processing)
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), 'uploads')
+    // 4. Try AI Extraction (Gemini 1.5 Flash)
     try {
-      await fs.access(uploadsDir)
-    } catch {
-      await fs.mkdir(uploadsDir, { recursive: true })
-    }
+      let text = '';
 
-    // Save file temporarily
-    const fileName = `${uuidv4()}-${file.name}`
-    const filePath = path.join(uploadsDir, fileName)
-    const buffer = Buffer.from(await file.arrayBuffer())
-    await fs.writeFile(filePath, buffer)
-
-    try {
-      // Read file content
-      const fileBuffer = await fs.readFile(filePath)
-
-      let extractedData: any
-
-      try {
-        // Try to call AI service for extraction
-        const aiServiceUrl = process.env.NEXT_PUBLIC_AI_SERVICE_URL || 'http://localhost:8001'
-        const formData = new FormData()
-        const blob = new Blob([new Uint8Array(fileBuffer)], {
-          type: file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        })
-        formData.append('file', blob, file.name)
-
-        const aiResponse = await fetch(`${aiServiceUrl}/parse-resume-file`, {
-          method: 'POST',
-          body: formData,
-          signal: AbortSignal.timeout(5000) // 5 second timeout
-        })
-
-        if (aiResponse.ok) {
-          const aiResult = await aiResponse.json()
-
-          // Transform AI service response to expected format
-          extractedData = {
-            personalInfo: {
-              name: aiResult.personal_info?.name || '',
-              email: aiResult.personal_info?.email || '',
-              phone: aiResult.personal_info?.phone || '',
-              location: aiResult.personal_info?.location || '',
-              linkedin: aiResult.personal_info?.linkedin || '',
-              github: aiResult.personal_info?.github || ''
-            },
-            professionalSummary: '',
-            experience: (aiResult.experience || []).map((exp: any) => ({
-              id: uuidv4(),
-              company: exp.company || '',
-              position: exp.position || '',
-              location: '',
-              startDate: exp.duration ? exp.duration.split(' - ')[0] : '',
-              endDate: exp.duration ? exp.duration.split(' - ')[1] : '',
-              current: exp.duration?.toLowerCase().includes('present') || exp.duration?.toLowerCase().includes('current'),
-              description: exp.description || '',
-              proofUploaded: false
-            })),
-            education: (aiResult.education || []).map((edu: any) => ({
-              id: uuidv4(),
-              institution: edu.institution || '',
-              degree: edu.degree || '',
-              field: '',
-              startDate: '',
-              endDate: edu.year || '',
-              grade: '',
-              location: ''
-            })),
-            skills: {
-              technical: (aiResult.skills || [])
-                .filter((skill: any) => skill.category === 'programming' || skill.category === 'databases' || skill.category === 'cloud' || skill.category === 'tools')
-                .map((skill: any) => skill.name) || [],
-              soft: (aiResult.skills || [])
-                .filter((skill: any) => skill.category === 'soft_skills')
-                .map((skill: any) => skill.name) || []
-            },
-            certificates: (aiResult.certificates || []).map((cert: any) => ({
-              id: uuidv4(),
-              name: cert.name || '',
-              issuer: cert.issuer || '',
-              certificateId: cert.certificateId || '',
-              issueDate: cert.date || '',
-              verificationStatus: cert.certificateId ? 'pending' : 'pending',
-              verified: false
-            })),
-            projects: [],
-            awards: [],
-            languages: []
-          }
-        } else {
-          throw new Error('AI service not available')
-        }
-      } catch (aiError) {
-        if (aiError instanceof Error) {
-          console.log('AI service not available, falling back to local extraction:', aiError.message)
-        } else {
-          console.log('AI service not available, falling back to local extraction:', String(aiError))
-        }
-
-        // Fallback to local extraction when AI service is not available
-        const text = await extractTextLocally(fileBuffer, file.name)
-
-        // Build extracted data using local parsers
-        const personal = extractPersonalInfo(text)
-        const experience = extractExperience(text)
-        const education = extractEducation(text)
-        const skills = extractSkills(text)
-        const certifications = extractCertificates(text)
-
-        extractedData = {
-          personalInfo: {
-            name: personal.name || '',
-            email: personal.email || '',
-            phone: personal.phone || '',
-            location: personal.location || '',
-            linkedin: personal.linkedin || '',
-            github: personal.github || ''
-          },
-          professionalSummary: '',
-          experience,
-          education,
-          skills,
-          certificates: certifications,
-          projects: [],
-          awards: [],
-          languages: []
-        }
+      // Parse PDF/Doc text first for prompt
+      if (file.name.toLowerCase().endsWith('.pdf')) {
+        console.log('🔄 Parsing PDF locally...');
+        const parsed = await pdfParse(fileBuffer);
+        text = parsed.text;
+      } else if (file.name.toLowerCase().endsWith('.docx') || file.name.toLowerCase().endsWith('.doc')) {
+        console.log('🔄 Parsing DOCX locally...');
+        const { value } = await mammoth.extractRawText({ buffer: fileBuffer });
+        text = value;
+      } else {
+        throw new Error('Unsupported file format');
       }
 
-      // Clean up temporary file
-      await fs.unlink(filePath)
+      console.log(`✅ Text extracted locally (${text.length} chars). Sending to Gemini...`);
 
+      const prompt = `
+        You are an expert Resume Parser. 
+        Extract structured data from the following resume text.
+        Return ONLY valid JSON. No markdown formatting.
+
+        Resume Text:
+        ${text.slice(0, 50000)}
+
+        Required JSON Structure:
+        {
+          "personalInfo": {
+            "name": "Candidate Name",
+            "email": "Email",
+            "phone": "Phone",
+            "location": "City, Country",
+            "linkedin": "URL",
+            "github": "URL"
+          },
+          "experience": [{
+            "company": "Company Name",
+            "position": "Role",
+            "duration": "Start - End",
+            "description": "Summary"
+          }],
+          "education": [{
+            "institution": "School Name",
+            "degree": "Degree",
+            "year": "Year"
+          }],
+          "skills": {
+            "technical": ["Skill1", "Skill2"],
+            "soft": ["Skill1"]
+          },
+          "certificates": [{
+            "name": "Cert Name",
+            "issuer": "Issuer",
+            "date": "Date"
+          }]
+        }
+      `;
+
+      const aiResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        }
+      );
+
+      if (!aiResponse.ok) {
+        const errText = await aiResponse.text();
+        throw new Error(`Gemini API Error: ${aiResponse.status} ${errText}`);
+      }
+
+      const json = await aiResponse.json();
+      const aiText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!aiText) throw new Error('Empty response from AI');
+
+      // Parse JSON from AI
+      const cleanJson = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const extractedData = JSON.parse(cleanJson);
+
+      console.log('✅ AI Extraction Successful');
       return NextResponse.json({
         success: true,
         data: extractedData,
-        message: 'Resume processed successfully'
-      })
+        message: 'Resume processed successfully via AI'
+      });
 
-    } catch (extractionError) {
-      // Clean up temporary file on error
-      try {
-        await fs.unlink(filePath)
-      } catch {}
+    } catch (aiError: any) {
+      console.error('⚠️ AI Extraction Failed:', aiError.message);
+      console.log('🔄 Falling back into local regex extraction');
 
-      console.error('Resume extraction error:', extractionError)
-      return NextResponse.json(
-        { error: 'Failed to extract data from resume' },
-        { status: 500 }
-      )
+      // 5. Fallback: Local Regex Extraction
+      const text = await extractTextLocally(fileBuffer, file.name);
+
+      const extractedData = {
+        personalInfo: extractPersonalInfo(text),
+        experience: extractExperience(text),
+        education: extractEducation(text),
+        skills: extractSkills(text),
+        certificates: extractCertificates(text),
+        projects: [],
+        awards: [],
+        languages: []
+      };
+
+      console.log('✅ Local Regex Extraction Successful');
+      return NextResponse.json({
+        success: true,
+        data: extractedData,
+        message: 'Resume processed successfully (Offline Mode)'
+      });
     }
 
-  } catch (error) {
-    console.error('Resume upload error:', error)
+  } catch (error: any) {
+    console.error('❌ Critical Server Error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error: ' + error.message },
       { status: 500 }
-    )
+    );
   }
 }

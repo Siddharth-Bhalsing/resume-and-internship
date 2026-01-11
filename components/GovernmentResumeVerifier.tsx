@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { 
-  Shield, AlertTriangle, CheckCircle, Clock, Eye, 
+import {
+  Shield, AlertTriangle, CheckCircle, Clock, Eye,
   FileText, User, Building, Award, Search, Filter,
   TrendingUp, Users, BarChart3, RefreshCw
 } from 'lucide-react'
@@ -58,6 +58,54 @@ export default function GovernmentResumeVerifier() {
     averageScore: 78
   }
 
+
+
+  const [file, setFile] = useState<File | null>(null)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analysisResult, setAnalysisResult] = useState<CandidateProfile | null>(null)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0])
+    }
+  }
+
+  const handleVerify = async () => {
+    if (!file) {
+      toast.error('Please upload a resume first')
+      return
+    }
+
+    setAnalyzing(true)
+    const formData = new FormData()
+    formData.append('resume', file)
+    formData.append('jobDescription', 'Software Engineering role with React and Node.js skills')
+
+    try {
+      const response = await fetch('/api/verify-resume', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Verification failed')
+      }
+
+      setAnalysisResult(data)
+      candidates.unshift(data) // Add to list
+      toast.success('Resume verified successfully!')
+      setActiveTab('candidates')
+    } catch (error: any) {
+      console.error('Verification Error:', error)
+      toast.error(error.message || 'Failed to verify resume')
+    } finally {
+      setAnalyzing(false)
+      setFile(null)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -75,6 +123,45 @@ export default function GovernmentResumeVerifier() {
           </div>
         </div>
 
+        {/* AI Verification Section */}
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Verify New Resume (AI Powered)</h2>
+          <div className="flex items-center space-x-4">
+            <input
+              type="file"
+              accept=".pdf"
+              onChange={handleFileChange}
+              className="block w-full text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100"
+            />
+            <button
+              onClick={handleVerify}
+              disabled={!file || analyzing}
+              className={`flex items-center space-x-2 px-6 py-2 rounded-lg text-white font-medium transition-colors ${analyzing ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+            >
+              {analyzing ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Analyzing...</span>
+                </>
+              ) : (
+                <>
+                  <Search className="w-4 h-4" />
+                  <span>Verify Resume</span>
+                </>
+              )}
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Upload a PDF resume. Our AI will analyze skills, verify consistency, and detect potential fraud.
+          </p>
+        </div>
+
         {/* Navigation Tabs */}
         <div className="bg-white rounded-xl shadow-sm mb-6">
           <div className="flex border-b">
@@ -86,11 +173,10 @@ export default function GovernmentResumeVerifier() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center space-x-2 px-6 py-4 font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`flex items-center space-x-2 px-6 py-4 font-medium transition-colors ${activeTab === tab.id
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 <tab.icon className="w-4 h-4" />
                 <span>{tab.label}</span>
@@ -112,7 +198,7 @@ export default function GovernmentResumeVerifier() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Total Applications</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.totalApplications}</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.totalApplications + (analysisResult ? 1 : 0)}</p>
                   </div>
                   <FileText className="w-8 h-8 text-blue-600" />
                 </div>
@@ -171,10 +257,9 @@ export default function GovernmentResumeVerifier() {
                 {candidates.slice(0, 5).map((candidate) => (
                   <div key={candidate.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center space-x-4">
-                      <div className={`w-3 h-3 rounded-full ${
-                        candidate.riskLevel === 'low' ? 'bg-green-500' :
+                      <div className={`w-3 h-3 rounded-full ${candidate.riskLevel === 'low' ? 'bg-green-500' :
                         candidate.riskLevel === 'medium' ? 'bg-yellow-500' : 'bg-red-500'
-                      }`} />
+                        }`} />
                       <div>
                         <p className="font-medium text-gray-900">{candidate.name}</p>
                         <p className="text-sm text-gray-600">{candidate.position}</p>
@@ -237,11 +322,10 @@ export default function GovernmentResumeVerifier() {
                       <td className="py-4 px-4">
                         <div className="flex items-center space-x-2">
                           <div className="w-16 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className={`h-2 rounded-full ${
-                                candidate.verificationScore >= 70 ? 'bg-green-500' :
+                            <div
+                              className={`h-2 rounded-full ${candidate.verificationScore >= 70 ? 'bg-green-500' :
                                 candidate.verificationScore >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                              }`}
+                                }`}
                               style={{ width: `${candidate.verificationScore}%` }}
                             />
                           </div>
@@ -249,20 +333,18 @@ export default function GovernmentResumeVerifier() {
                         </div>
                       </td>
                       <td className="py-4 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          candidate.riskLevel === 'low' ? 'bg-green-100 text-green-800' :
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${candidate.riskLevel === 'low' ? 'bg-green-100 text-green-800' :
                           candidate.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
+                            'bg-red-100 text-red-800'
+                          }`}>
                           {candidate.riskLevel.toUpperCase()}
                         </span>
                       </td>
                       <td className="py-4 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          candidate.status === 'verified' ? 'bg-green-100 text-green-800' :
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${candidate.status === 'verified' ? 'bg-green-100 text-green-800' :
                           candidate.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
+                            'bg-red-100 text-red-800'
+                          }`}>
                           {candidate.status.toUpperCase()}
                         </span>
                       </td>

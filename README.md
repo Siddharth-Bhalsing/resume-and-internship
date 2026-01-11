@@ -1,6 +1,8 @@
-# ResuChain - AI Resume Verifier
+# Chanakya
 
-ResuChain is a comprehensive AI-powered resume verification system built for the Government of India. It provides secure, blockchain-backed verification of resumes, skills assessment, and experience validation.
+Internship and Resume Verifier
+
+Chanakya is a comprehensive AI-powered resume verification and internship management system. It provides secure, blockchain-backed verification of resumes, skills assessment, and experience validation.
 
 ## 🚀 Features
 

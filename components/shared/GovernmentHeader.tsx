@@ -52,9 +52,8 @@ export default function GovernmentHeader({
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center space-x-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">PM Internship & Resume Verifier</h1>
-                <p className="text-sm text-gray-600">MINISTRY OF EDUCATION</p>
-                <p className="text-xs text-gray-500">Government of India</p>
+                <h1 className="text-3xl font-bold text-gray-900">Chanakya</h1>
+                <p className="text-lg text-gray-600">Internship and Resume Verifier</p>
               </div>
             </div>
             

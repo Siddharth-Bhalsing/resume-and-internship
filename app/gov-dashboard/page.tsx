@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  User, FileText, Award, Settings, LogOut, Bell, Menu, X, 
+import {
+  User, FileText, Award, Settings, LogOut, Bell, Menu, X,
   Briefcase, MessageSquare, FileCheck, Edit, Save, Plus, Download,
   Users, Shield, BarChart3, CheckCircle, Clock, AlertCircle,
   Building2, Search, Filter, Eye, TrendingUp,
@@ -21,7 +21,12 @@ import ReportsAnalytics from '../../components/ReportsAnalytics'
 import InternshipVerification from '../../components/InternshipVerification'
 
 export default function GovernmentDashboard() {
-  const { user, signOut } = useAuth()
+  const { user: authUser, signOut } = useAuth()
+  const [mockSessionUser, setMockSessionUser] = useState<any>(null)
+  // Use authorized user or fallback to mock session user
+  const verifiedUser = authUser || mockSessionUser
+
+
   const [activeTab, setActiveTab] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userData, setUserData] = useState<any>(null)
@@ -55,41 +60,84 @@ export default function GovernmentDashboard() {
   ]
 
   useEffect(() => {
-    if (user) {
-      fetchUserData()
-      fetchStats()
-      fetchPendingDocuments()
-      fetchGrievances()
-      fetchPendingRecruiterProfiles()
+    const checkSession = async () => {
+      // 1. If we have a real Supabase user, use it
+      if (authUser) {
+        setMockSessionUser(null) // clear mock if real exists
+        fetchUserData()
+        fetchStats()
+        fetchPendingDocuments()
+        fetchGrievances()
+        fetchPendingRecruiterProfiles()
+        setupRealtimeSubscriptions()
+        return
+      }
 
-      // Set up real-time subscriptions
-      setupRealtimeSubscriptions()
-    } else if (user === null) {
-      // User is explicitly null (not authenticated)
+      // 2. If no real user, check for mock session
+      const mockSessionStr = sessionStorage.getItem('gov_session')
+      if (mockSessionStr) {
+        try {
+          const session = JSON.parse(mockSessionStr)
+          console.log('✅ Restoring government session for:', session.official?.name)
+
+          if (session.user) {
+            setMockSessionUser(session.user)
+
+            // Set user data immediately from session to avoid delay
+            if (session.official) {
+              setUserData({
+                id: session.user.id,
+                full_name: session.official.name,
+                email: session.official.email,
+                role: 'government',
+                designation: session.official.designation,
+                department: session.official.department
+              })
+            }
+
+            // Fetch data using the mock user context
+            fetchStats()
+            fetchPendingDocuments()
+            fetchGrievances()
+            fetchPendingRecruiterProfiles()
+            // Skip realtime for mock users to avoid auth errors
+          }
+        } catch (e) {
+          console.error('Failed to restore session:', e)
+        }
+      } else {
+        // No user and no session - strictly this should redirect, 
+        // but we'll let the UI handle empty state or redirect if needed
+        // window.location.href = '/gov-login'
+      }
       setLoading(false)
     }
+
+    checkSession()
 
     // Cleanup function
     return () => {
       // Cleanup subscriptions will be handled by Supabase
     }
-  }, [user])
+  }, [authUser])
 
   // Fetch pending postings when posting-reviews tab is active
   useEffect(() => {
-    if (activeTab === 'posting-reviews' && user) {
+    if (activeTab === 'posting-reviews' && verifiedUser) {
       fetchPendingPostings()
     }
-  }, [activeTab, user])
+  }, [activeTab, verifiedUser])
 
   const fetchUserData = async () => {
     try {
+      if (!verifiedUser?.id) return
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user?.id)
+        .eq('id', verifiedUser.id)
         .single()
-      
+
       if (data) setUserData(data)
       if (error) console.error('Error fetching user data:', error)
     } catch (error) {
@@ -214,7 +262,7 @@ export default function GovernmentDashboard() {
   const fetchPendingRecruiterProfiles = async () => {
     try {
       console.log('🔍 Fetching pending recruiter profiles...')
-      
+
       // Fetch all recruiter profiles with pending status AND completed profile
       const { data, error } = await supabase
         .from('recruiter_profiles')
@@ -232,7 +280,7 @@ export default function GovernmentDashboard() {
 
       console.log(`✅ Found ${data?.length || 0} pending recruiter profiles:`, data)
       setPendingRecruiterProfiles(data || [])
-      
+
       if (!data || data.length === 0) {
         console.log('ℹ️ No pending recruiter profiles found. Make sure:')
         console.log('  1. Recruiter has completed their profile (profile_completed = true)')
@@ -339,7 +387,7 @@ export default function GovernmentDashboard() {
         .from('documents')
         .update({
           verification_status: status,
-          verified_by: user?.id,
+          verified_by: verifiedUser?.id,
           verified_at: new Date().toISOString(),
           rejection_reason: reason
         })
@@ -361,7 +409,7 @@ export default function GovernmentDashboard() {
         .update({
           status,
           resolution,
-          assigned_to: user?.id,
+          assigned_to: verifiedUser?.id,
           updated_at: new Date().toISOString()
         })
         .eq('id', grievanceId)
@@ -420,7 +468,7 @@ export default function GovernmentDashboard() {
     try {
       const updateData: any = {
         status,
-        reviewed_by: user?.id,
+        reviewed_by: verifiedUser?.id,
         reviewed_at: new Date().toISOString()
       }
 
@@ -554,11 +602,10 @@ export default function GovernmentDashboard() {
               <div key={grievance.id} className="p-3 border border-gray-100 rounded-lg">
                 <div className="flex items-start justify-between mb-2">
                   <p className="font-medium text-gray-900">{grievance.subject}</p>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    grievance.priority === 'high' ? 'bg-red-100 text-red-800' :
+                  <span className={`px-2 py-1 text-xs rounded-full ${grievance.priority === 'high' ? 'bg-red-100 text-red-800' :
                     grievance.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
+                      'bg-gray-100 text-gray-800'
+                    }`}>
                     {grievance.priority}
                   </span>
                 </div>
@@ -596,7 +643,7 @@ export default function GovernmentDashboard() {
             <span>Post New Internship</span>
           </button>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg">
             <h3 className="font-semibold text-blue-900">Active Internships</h3>
@@ -614,7 +661,7 @@ export default function GovernmentDashboard() {
 
         <div className="space-y-4">
           <h3 className="font-semibold">Recent Internship Postings</h3>
-          {[1,2,3].map((i) => (
+          {[1, 2, 3].map((i) => (
             <div key={i} className="border rounded-lg p-4 flex justify-between items-center">
               <div>
                 <h4 className="font-medium">Software Development Intern - Ministry of IT</h4>
@@ -637,7 +684,7 @@ export default function GovernmentDashboard() {
     <div className="space-y-6">
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-6">Student Profile Verification</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-yellow-50 p-4 rounded-lg text-center">
             <Clock className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
@@ -663,7 +710,7 @@ export default function GovernmentDashboard() {
 
         <div className="space-y-4">
           <h3 className="font-semibold">Recent Verification Requests</h3>
-          {[1,2,3,4].map((i) => (
+          {[1, 2, 3, 4].map((i) => (
             <div key={i} className="border rounded-lg p-4">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
@@ -703,7 +750,7 @@ export default function GovernmentDashboard() {
           <Shield className="w-8 h-8 text-blue-600" />
           <h2 className="text-xl font-semibold text-gray-900">AI-Powered Resume Verifier</h2>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg">
             <h3 className="font-semibold text-blue-900">Resumes Processed</h3>
@@ -724,7 +771,7 @@ export default function GovernmentDashboard() {
 
         <div className="space-y-4">
           <h3 className="font-semibold">AI Verification Queue</h3>
-          {[1,2,3].map((i) => (
+          {[1, 2, 3].map((i) => (
             <div key={i} className="border rounded-lg p-4">
               <div className="flex justify-between items-center">
                 <div className="flex-1">
@@ -753,7 +800,7 @@ export default function GovernmentDashboard() {
     <div className="space-y-6">
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-6">Government Document Validation</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg text-center">
             <Database className="w-8 h-8 text-blue-600 mx-auto mb-2" />
@@ -792,9 +839,8 @@ export default function GovernmentDashboard() {
                 <p className="text-xs text-gray-500">Source: {doc.source}</p>
               </div>
               <div className="flex items-center space-x-2">
-                <span className={`px-3 py-1 text-sm rounded-full ${
-                  doc.status === 'verified' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                }`}>
+                <span className={`px-3 py-1 text-sm rounded-full ${doc.status === 'verified' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                  }`}>
                   {doc.status === 'verified' ? 'Verified' : 'Pending'}
                 </span>
                 <button className="px-3 py-1 bg-blue-600 text-white text-sm rounded">View</button>
@@ -814,7 +860,7 @@ export default function GovernmentDashboard() {
           <Zap className="w-8 h-8 text-purple-600" />
           <h2 className="text-xl font-semibold text-gray-900">Smart Allocation System</h2>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-purple-50 p-4 rounded-lg">
             <h3 className="font-semibold text-purple-900">AI Matches Made</h3>
@@ -865,7 +911,7 @@ export default function GovernmentDashboard() {
           <AlertCircle className="w-8 h-8 text-red-600" />
           <h2 className="text-xl font-semibold text-gray-900">AI Fraud Detection System</h2>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-red-50 p-4 rounded-lg text-center">
             <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-2" />
@@ -900,9 +946,8 @@ export default function GovernmentDashboard() {
               <div>
                 <h4 className="font-medium">{case_.student}</h4>
                 <p className="text-sm text-gray-600">{case_.issue}</p>
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  case_.risk === 'High' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-                }`}>
+                <span className={`text-xs px-2 py-1 rounded-full ${case_.risk === 'High' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                  }`}>
                   {case_.risk} Risk
                 </span>
               </div>
@@ -925,7 +970,7 @@ export default function GovernmentDashboard() {
           <Building2 className="w-8 h-8 text-indigo-600" />
           <h2 className="text-xl font-semibold text-gray-900">Employer Portal Management</h2>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-indigo-50 p-4 rounded-lg">
             <h3 className="font-semibold text-indigo-900">Registered Employers</h3>
@@ -975,7 +1020,7 @@ export default function GovernmentDashboard() {
           <Award className="w-8 h-8 text-gold-600" />
           <h2 className="text-xl font-semibold text-gray-900">Digital Certificate Management</h2>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg text-center">
             <Award className="w-8 h-8 text-blue-600 mx-auto mb-2" />
@@ -1031,7 +1076,7 @@ export default function GovernmentDashboard() {
           <MessageSquare className="w-8 h-8 text-blue-600" />
           <h2 className="text-xl font-semibold text-gray-900">Grievance Management System</h2>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-red-50 p-4 rounded-lg text-center">
             <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-2" />
@@ -1067,11 +1112,10 @@ export default function GovernmentDashboard() {
                   <p className="text-xs text-gray-500">Submitted: {new Date(grievance.created_at).toLocaleDateString()}</p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    grievance.priority === 'high' ? 'bg-red-100 text-red-800' :
+                  <span className={`px-2 py-1 text-xs rounded-full ${grievance.priority === 'high' ? 'bg-red-100 text-red-800' :
                     grievance.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
+                      'bg-gray-100 text-gray-800'
+                    }`}>
                     {grievance.priority}
                   </span>
                   <button className="px-3 py-1 bg-blue-600 text-white text-sm rounded">Assign</button>
@@ -1092,7 +1136,7 @@ export default function GovernmentDashboard() {
           <BarChart3 className="w-8 h-8 text-green-600" />
           <h2 className="text-xl font-semibold text-gray-900">Reports & Analytics Dashboard</h2>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-blue-50 p-4 rounded-lg text-center">
             <TrendingUp className="w-8 h-8 text-blue-600 mx-auto mb-2" />
@@ -1160,7 +1204,7 @@ export default function GovernmentDashboard() {
           fetchPendingRecruiterProfiles()
           fetchStats()
           setSelectedProfile(null)
-          
+
           if (status === 'approved') {
             toast.success('✅ Recruiter approved! They will be notified in real-time.', {
               duration: 4000,
@@ -1190,7 +1234,7 @@ export default function GovernmentDashboard() {
     }
 
     return (
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
@@ -1219,7 +1263,7 @@ export default function GovernmentDashboard() {
 
         {/* Enhanced Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <motion.div 
+          <motion.div
             whileHover={{ scale: 1.05, translateY: -5 }}
             className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-2xl shadow-lg border-2 border-yellow-200"
           >
@@ -1233,7 +1277,7 @@ export default function GovernmentDashboard() {
             <p className="text-sm text-yellow-700 mt-1">Awaiting approval</p>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             whileHover={{ scale: 1.05, translateY: -5 }}
             className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl shadow-lg border-2 border-green-200"
           >
@@ -1249,7 +1293,7 @@ export default function GovernmentDashboard() {
             <p className="text-sm text-green-700 mt-1">Successfully verified</p>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             whileHover={{ scale: 1.05, translateY: -5 }}
             className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-2xl shadow-lg border-2 border-red-200"
           >
@@ -1263,7 +1307,7 @@ export default function GovernmentDashboard() {
             <p className="text-sm text-red-700 mt-1">Did not meet criteria</p>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             whileHover={{ scale: 1.05, translateY: -5 }}
             className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl shadow-lg border-2 border-blue-200"
           >
@@ -1272,8 +1316,8 @@ export default function GovernmentDashboard() {
                 <TrendingUp className="w-8 h-8 text-white" />
               </div>
               <span className="text-3xl font-bold text-blue-700">
-                {stats.pendingRecruiters || stats.approvedToday ? 
-                  Math.round((stats.approvedToday || 0) / ((stats.approvedToday || 0) + (stats.rejectedToday || 0) + (stats.pendingRecruiters || 0)) * 100) || 0 
+                {stats.pendingRecruiters || stats.approvedToday ?
+                  Math.round((stats.approvedToday || 0) / ((stats.approvedToday || 0) + (stats.rejectedToday || 0) + (stats.pendingRecruiters || 0)) * 100) || 0
                   : 0}%
               </span>
             </div>
@@ -1324,7 +1368,7 @@ export default function GovernmentDashboard() {
                               Pending
                             </span>
                           </div>
-                          
+
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                             <div className="flex items-center space-x-2 text-gray-700">
                               <Building2 className="w-4 h-4 text-blue-600" />
@@ -1798,7 +1842,7 @@ export default function GovernmentDashboard() {
           <Settings className="w-8 h-8 text-gray-600" />
           <h2 className="text-xl font-semibold text-gray-900">System Settings & Configuration</h2>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <h3 className="font-semibold">System Configuration</h3>
@@ -1821,7 +1865,7 @@ export default function GovernmentDashboard() {
               </div>
             </div>
           </div>
-          
+
           <div className="space-y-4">
             <h3 className="font-semibold">System Status</h3>
             <div className="space-y-3">
@@ -1877,22 +1921,13 @@ export default function GovernmentDashboard() {
     )
   }
 
-  // For testing purposes, create a mock user if no user is authenticated
-  const mockUser = {
-    id: 'test-gov-id',
-    email: 'test@gov.in',
-    user_metadata: {
-      full_name: 'Government Official'
-    }
-  }
 
-  const currentUser = user || mockUser
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-orange-50">
       {/* Government Official Header - Top Bar */}
       <div className="bg-gradient-to-r from-orange-500 via-white to-green-500 h-2"></div>
-      
+
       {/* Main Government Header */}
       <header className="bg-white shadow-lg border-b-4 border-orange-500">
         {/* Top Section without Emblem */}
@@ -1906,7 +1941,7 @@ export default function GovernmentDashboard() {
                   <p className="text-xs text-blue-300">Ministry of Education | शिक्षा मंत्रालय</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-4">
                 <div className="text-right">
                   <p className="text-sm font-medium">{new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
@@ -1928,7 +1963,7 @@ export default function GovernmentDashboard() {
                 >
                   {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                 </button>
-                
+
                 {/* Breadcrumbs */}
                 <div className="flex items-center space-x-2 text-sm">
                   <BarChart3 className="w-4 h-4 text-orange-600" />
@@ -1937,16 +1972,16 @@ export default function GovernmentDashboard() {
                   <span className="text-blue-700 font-semibold">{menuItems.find(item => item.id === activeTab)?.label}</span>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-3">
                 {/* Quick Actions */}
                 <button className="relative p-2 text-gray-600 hover:bg-blue-50 rounded-lg transition-all">
                   <Bell className="w-5 h-5" />
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                 </button>
-                
+
                 <div className="h-8 w-px bg-gray-300"></div>
-                
+
                 {/* User Profile */}
                 <div className="flex items-center space-x-3 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2 rounded-lg border border-blue-200">
                   <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-md">
@@ -1954,12 +1989,12 @@ export default function GovernmentDashboard() {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-900">
-                      {userData?.full_name || currentUser?.user_metadata?.full_name || 'Official'}
+                      {userData?.full_name || verifiedUser?.user_metadata?.full_name || 'Official'}
                     </p>
                     <p className="text-xs text-gray-600">Authorized Officer</p>
                   </div>
                 </div>
-                
+
                 <button
                   onClick={() => user ? signOut() : console.log('Mock user')}
                   className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md flex items-center space-x-2"
@@ -1990,7 +2025,7 @@ export default function GovernmentDashboard() {
                   <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Administrative Modules</h3>
                   <p className="text-xs text-gray-500 mt-1">शासकीय मॉड्यूल</p>
                 </div>
-                
+
                 <nav className="space-y-1 flex-1 overflow-y-auto">
                   {menuItems.map((item, index) => (
                     <motion.button
@@ -1999,31 +2034,27 @@ export default function GovernmentDashboard() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
                       onClick={() => handleMenuClick(item.id)}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group ${
-                        activeTab === item.id
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200 scale-105'
-                          : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:shadow-md'
-                      }`}
+                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group ${activeTab === item.id
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200 scale-105'
+                        : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:shadow-md'
+                        }`}
                     >
-                      <div className={`p-2 rounded-lg ${
-                        activeTab === item.id
-                          ? 'bg-white/20'
-                          : 'bg-gray-100 group-hover:bg-white'
-                      }`}>
-                        <item.icon className={`w-5 h-5 ${
-                          activeTab === item.id ? 'text-white' : 'text-gray-600 group-hover:text-blue-600'
-                        }`} />
+                      <div className={`p-2 rounded-lg ${activeTab === item.id
+                        ? 'bg-white/20'
+                        : 'bg-gray-100 group-hover:bg-white'
+                        }`}>
+                        <item.icon className={`w-5 h-5 ${activeTab === item.id ? 'text-white' : 'text-gray-600 group-hover:text-blue-600'
+                          }`} />
                       </div>
-                      <span className={`font-medium text-sm ${
-                        activeTab === item.id ? 'text-white' : 'text-gray-700 group-hover:text-gray-900'
-                      }`}>{item.label}</span>
+                      <span className={`font-medium text-sm ${activeTab === item.id ? 'text-white' : 'text-gray-700 group-hover:text-gray-900'
+                        }`}>{item.label}</span>
                       {activeTab === item.id && (
                         <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse"></div>
                       )}
                     </motion.button>
                   ))}
                 </nav>
-                
+
                 {/* Government Links at bottom */}
                 <div className="mt-auto pt-6 space-y-4 border-t-2 border-orange-200">
                   <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-xl border border-orange-200">
@@ -2043,7 +2074,7 @@ export default function GovernmentDashboard() {
                       </a>
                     </div>
                   </div>
-                  
+
                   {/* Officer Info */}
                   <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl border-2 border-green-200 shadow-md">
                     <div className="flex items-center space-x-3">
@@ -2052,10 +2083,10 @@ export default function GovernmentDashboard() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-gray-900 truncate">
-                          {userData?.full_name || currentUser?.user_metadata?.full_name || 'Officer'}
+                          {userData?.full_name || verifiedUser?.user_metadata?.full_name || 'Officer'}
                         </p>
                         <p className="text-xs text-green-700 font-medium">Authorized Access</p>
-                        <p className="text-xs text-gray-600">ID: GOV-{currentUser?.id?.slice(0, 8)}</p>
+                        <p className="text-xs text-gray-600">ID: GOV-{verifiedUser?.id?.slice(0, 8)}</p>
                       </div>
                     </div>
                   </div>

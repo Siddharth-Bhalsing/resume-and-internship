@@ -14,18 +14,16 @@
 ### Valid Credentials:
 | Employee ID | Password | Name | Department | Role |
 |-------------|----------|------|------------|------|
-| `GOV001` | `password123` | Dr. Rajesh Kumar | Ministry of Education | Director |
-| `GOV002` | `password123` | Ms. Priya Sharma | Ministry of Education | Joint Secretary |
-| `GOV003` | `password123` | Mr. Amit Singh | Ministry of Education | Under Secretary |
-| `ADMIN` | `admin123` | System Administrator | IT Department | Admin |
+| `EMP001` | `goverment` | Dr. Rajesh Kumar | Ministry of Education | Joint Secretary |
+| `EMP002` | `goverment` | Ms. Priya Sharma | Ministry of Electronics & IT | Director |
+| `EMP003` | `goverment` | Mr. Amit Singh | Ministry of Skill Development | Under Secretary |
 
 ### Login Process:
-1. Enter Employee ID (e.g., `GOV001`)
-2. Enter Password (e.g., `password123`)
+1. Enter Employee ID (e.g., `EMP001`)
+2. Enter Password: `goverment`
 3. Enter Security Code (displayed captcha)
 4. Click "Secure Login"
-5. Enter any 6-digit OTP (e.g., `123456`)
-6. Access Government Dashboard
+5. Redirects directly to Government Dashboard (OTP skipped)
 
 ## 🏢 Recruiter/Organization Login
 **URL**: `/recruiter-login`
@@ -62,13 +60,13 @@
 
 ### Common Issues:
 1. **Invalid Organization/Employee ID**: Use exact IDs from tables above
-2. **Invalid Password**: Use exact passwords from tables above
+2. **Invalid Password**: Use exact passwords from tables above  
 3. **Captcha Error**: Enter the exact code displayed (case-sensitive)
-4. **OTP Error**: Enter any 6-digit number
+4. **Auth User Missing**: Run `node scripts/create-gov-auth-users.js` to create auth users
 
 ### Quick Test Flow:
 1. **Student**: Use "Dev Access" link for instant access
-2. **Government**: Use `GOV001` / `password123`
+2. **Government**: Use `EMP001` / `goverment`
 3. **Recruiter**: Use `ORG001` / `recruiter123`
 
 All logins include proper error messages with hints for valid credentials.
