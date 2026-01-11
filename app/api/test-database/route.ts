@@ -6,7 +6,11 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export async function GET() {
-  const results = {
+  const results: {
+    timestamp: string;
+    tests: any[];
+    overall?: any;
+  } = {
     timestamp: new Date().toISOString(),
     tests: []
   }
@@ -47,7 +51,7 @@ export async function GET() {
           status: error ? 'failed' : 'passed',
           error: error?.message
         })
-      } catch (err) {
+      } catch (err: any) {
         tableResults.push({
           table,
           status: 'failed',
@@ -105,7 +109,7 @@ export async function GET() {
           status: error ? 'failed' : 'passed',
           error: error?.message
         })
-      } catch (err) {
+      } catch (err: any) {
         bucketResults.push({
           bucket,
           status: 'failed',
@@ -152,8 +156,8 @@ export async function GET() {
       message: failedTests.length > 0
         ? `${failedTests.length} tests failed`
         : warningTests.length > 0
-        ? `${warningTests.length} tests with warnings`
-        : 'All tests passed successfully',
+          ? `${warningTests.length} tests with warnings`
+          : 'All tests passed successfully',
       totalTests: results.tests.length,
       passedTests: results.tests.filter(t => t.status === 'passed').length,
       failedTests: failedTests.length,
@@ -162,7 +166,7 @@ export async function GET() {
 
     return NextResponse.json(results)
 
-  } catch (error) {
+  } catch (error: any) {
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       overall: {
