@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Environment validation
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+
 
 // Get the correct site URL for redirects
 const getSiteUrl = () => {
@@ -34,9 +35,14 @@ if (!supabaseUrl || !supabaseAnonKey ||
 }
 
 // Create Supabase client with enhanced configuration
+// Use strict URL check for build-time safety
+const validUrl = (supabaseUrl && supabaseUrl.startsWith('http')) ? supabaseUrl : 'https://placeholder.supabase.co'
+const validKey = supabaseAnonKey || 'placeholder-key'
+
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key',
+  validUrl,
+  validKey,
+
   {
     auth: {
       persistSession: true,
