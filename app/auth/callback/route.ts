@@ -3,14 +3,20 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-const supabase = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null
+// No top-level Supabase initialization to prevent build-time crashes
+
 
 export async function GET(request: Request) {
-  if (!supabase) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey || !supabaseUrl.startsWith('http')) {
+    console.error('❌ Supabase configuration missing for auth callback')
     return NextResponse.redirect(`${new URL(request.url).origin}/auth/auth-code-error`)
   }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
 
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')

@@ -3,17 +3,22 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-const supabase = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null
+// No top-level Supabase initialization to prevent build-time crashes
+
 
 export async function GET() {
-  if (!supabase) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey || !supabaseUrl.startsWith('http')) {
     return NextResponse.json({
-      error: 'Supabase configuration missing',
+      error: 'Supabase configuration missing or invalid URL',
       timestamp: new Date().toISOString()
     }, { status: 500 })
   }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
 
   const results: {
     timestamp: string;
