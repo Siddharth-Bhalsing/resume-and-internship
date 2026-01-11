@@ -1184,13 +1184,13 @@ export default function GovernmentDashboard() {
       try {
         const updateData: any = {
           approval_status: status,
-          reviewed_by: user?.id,
+          reviewed_by: verifiedUser?.id,
           reviewed_at: new Date().toISOString()
         }
 
         if (status === 'approved') {
           updateData.approved_at = new Date().toISOString()
-          updateData.approved_by = user?.id
+          updateData.approved_by = verifiedUser?.id
         } else {
           updateData.rejection_reason = feedback
         }
@@ -1996,7 +1996,7 @@ export default function GovernmentDashboard() {
                 </div>
 
                 <button
-                  onClick={() => user ? signOut() : console.log('Mock user')}
+                  onClick={() => verifiedUser ? signOut() : console.log('Mock user')}
                   className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md flex items-center space-x-2"
                   title="Sign Out"
                 >
